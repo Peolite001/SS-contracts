@@ -6,7 +6,7 @@ use soroban_sdk::{
     contract, contractimpl, Address, BytesN, Env, String, Symbol, TryFromVal, TryIntoVal, Val, Vec,
 };
 
-use crate::{Error, FeeReceipt, RegistryAssignment, Sector, SecondaryFee, SecondaryFeeClient};
+use crate::{Error, FeeReceipt, RegistryAssignment, SecondaryFee, SecondaryFeeClient, Sector};
 
 fn parse_event(env: &Env, event: &soroban_sdk::xdr::ContractEvent) -> (Address, Vec<Val>, Val) {
     let contract_addr = match &event.contract_id {
@@ -64,9 +64,7 @@ fn setup<'a>(env: &Env, fee_bps: u32) -> Fixture {
         token,
         token_admin,
         contract: contract_id,
-        client: unsafe {
-            core::mem::transmute::<_, SecondaryFeeClient<'static>>(client)
-        },
+        client: unsafe { core::mem::transmute::<_, SecondaryFeeClient<'static>>(client) },
     }
 }
 
@@ -86,13 +84,9 @@ fn test_collect_fee_from_market_balance_splits_correctly() {
     mint(&env, &f, &f.market, 1_000_000);
 
     let listing = Symbol::new(&env, "LST_001");
-    let receipt = f.client.collect_secondary_fee(
-        &f.market,
-        &listing,
-        &1_000_000,
-        &f.seller,
-        &f.token,
-    );
+    let receipt = f
+        .client
+        .collect_secondary_fee(&f.market, &listing, &1_000_000, &f.seller, &f.token);
 
     assert_eq!(
         receipt,
@@ -119,13 +113,9 @@ fn test_collect_fee_from_predeposited_balance() {
     assert_eq!(balance(&env, &f.token, &f.contract), 500_000);
 
     let listing = Symbol::new(&env, "LST_002");
-    let receipt = f.client.collect_secondary_fee(
-        &f.market,
-        &listing,
-        &500_000,
-        &f.seller,
-        &f.token,
-    );
+    let receipt = f
+        .client
+        .collect_secondary_fee(&f.market, &listing, &500_000, &f.seller, &f.token);
 
     assert_eq!(receipt.net_amount, 480_000);
     assert_eq!(receipt.fee_amount, 20_000);
@@ -142,13 +132,9 @@ fn test_fee_rounding_floors_and_conserves_total() {
     mint(&env, &f, &f.market, 1_000);
 
     let listing = Symbol::new(&env, "LST_RND");
-    let receipt = f.client.collect_secondary_fee(
-        &f.market,
-        &listing,
-        &1_000,
-        &f.seller,
-        &f.token,
-    );
+    let receipt = f
+        .client
+        .collect_secondary_fee(&f.market, &listing, &1_000, &f.seller, &f.token);
 
     // 1000 * 333 / 10000 = 33.3 -> floored to 33; seller absorbs the dust.
     assert_eq!(receipt.fee_amount, 33);
@@ -165,13 +151,9 @@ fn test_zero_fee_sends_full_amount_to_seller() {
     mint(&env, &f, &f.market, 75_000);
 
     let listing = Symbol::new(&env, "LST_FREE");
-    let receipt = f.client.collect_secondary_fee(
-        &f.market,
-        &listing,
-        &75_000,
-        &f.seller,
-        &f.token,
-    );
+    let receipt = f
+        .client
+        .collect_secondary_fee(&f.market, &listing, &75_000, &f.seller, &f.token);
 
     assert_eq!(receipt.fee_amount, 0);
     assert_eq!(receipt.net_amount, 75_000);
@@ -186,13 +168,9 @@ fn test_full_fee_sends_everything_to_treasury() {
     mint(&env, &f, &f.market, 60_000);
 
     let listing = Symbol::new(&env, "LST_ALL");
-    let receipt = f.client.collect_secondary_fee(
-        &f.market,
-        &listing,
-        &60_000,
-        &f.seller,
-        &f.token,
-    );
+    let receipt = f
+        .client
+        .collect_secondary_fee(&f.market, &listing, &60_000, &f.seller, &f.token);
 
     assert_eq!(receipt.net_amount, 0);
     assert_eq!(receipt.fee_amount, 60_000);
@@ -207,13 +185,9 @@ fn test_fee_rate_update_and_treasury_rerouting() {
     mint(&env, &f, &f.market, 100_000);
     let listing = Symbol::new(&env, "LST_UPD");
 
-    let first = f.client.collect_secondary_fee(
-        &f.market,
-        &listing,
-        &100_000,
-        &f.seller,
-        &f.token,
-    );
+    let first = f
+        .client
+        .collect_secondary_fee(&f.market, &listing, &100_000, &f.seller, &f.token);
     assert_eq!(first.fee_amount, 1_000);
 
     // Admin updates fee rate and treasury.
@@ -226,13 +200,9 @@ fn test_fee_rate_update_and_treasury_rerouting() {
     // Mint more tokens to market for the second sale.
     mint(&env, &f, &f.market, 100_000);
 
-    let second = f.client.collect_secondary_fee(
-        &f.market,
-        &listing,
-        &100_000,
-        &f.seller,
-        &f.token,
-    );
+    let second = f
+        .client
+        .collect_secondary_fee(&f.market, &listing, &100_000, &f.seller, &f.token);
     assert_eq!(second.fee_amount, 5_000);
     assert_eq!(balance(&env, &f.token, &new_treasury), 5_000);
     // Old treasury only received the first sale's fee.
@@ -249,13 +219,8 @@ fn test_collect_requires_bound_market_and_correct_caller() {
     let impostor = Address::generate(&env);
     let listing = Symbol::new(&env, "LST_AUTH");
     assert_eq!(
-        f.client.try_collect_secondary_fee(
-            &impostor,
-            &listing,
-            &100_000,
-            &f.seller,
-            &f.token,
-        ),
+        f.client
+            .try_collect_secondary_fee(&impostor, &listing, &100_000, &f.seller, &f.token,),
         Err(Ok(Error::Unauthorized))
     );
 
@@ -264,13 +229,7 @@ fn test_collect_requires_bound_market_and_correct_caller() {
     let fresh = SecondaryFeeClient::new(&env, &fresh_id);
     fresh.initialize(&f.admin, &f.treasury, &250);
     assert_eq!(
-        fresh.try_collect_secondary_fee(
-            &f.market,
-            &listing,
-            &100_000,
-            &f.seller,
-            &f.token,
-        ),
+        fresh.try_collect_secondary_fee(&f.market, &listing, &100_000, &f.seller, &f.token,),
         Err(Ok(Error::SecondaryMarketNotSet))
     );
 }
@@ -313,34 +272,19 @@ fn test_invalid_sale_amounts_and_insufficient_balance_rejected() {
 
     let listing = Symbol::new(&env, "LST_BAD");
     assert_eq!(
-        f.client.try_collect_secondary_fee(
-            &f.market,
-            &listing,
-            &0,
-            &f.seller,
-            &f.token,
-        ),
+        f.client
+            .try_collect_secondary_fee(&f.market, &listing, &0, &f.seller, &f.token,),
         Err(Ok(Error::InvalidAmount))
     );
     assert_eq!(
-        f.client.try_collect_secondary_fee(
-            &f.market,
-            &listing,
-            &-5,
-            &f.seller,
-            &f.token,
-        ),
+        f.client
+            .try_collect_secondary_fee(&f.market, &listing, &-5, &f.seller, &f.token,),
         Err(Ok(Error::InvalidAmount))
     );
     // Sale larger than both the contract and market balances.
     assert_eq!(
-        f.client.try_collect_secondary_fee(
-            &f.market,
-            &listing,
-            &1_000,
-            &f.seller,
-            &f.token,
-        ),
+        f.client
+            .try_collect_secondary_fee(&f.market, &listing, &1_000, &f.seller, &f.token,),
         Err(Ok(Error::InsufficientBalance))
     );
 }
@@ -353,13 +297,8 @@ fn test_secondary_fee_collected_event_payload() {
     env.ledger().set_timestamp(777_000);
 
     let listing = Symbol::new(&env, "LST_EVT");
-    f.client.collect_secondary_fee(
-        &f.market,
-        &listing,
-        &10_000,
-        &f.seller,
-        &f.token,
-    );
+    f.client
+        .collect_secondary_fee(&f.market, &listing, &10_000, &f.seller, &f.token);
 
     let events = env.events().all();
     let event = events.events().last().unwrap();

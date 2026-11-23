@@ -29,3 +29,15 @@ Institutional controls expose `CONTRACT_ERRORS["invoice-escrow"].InvestorCapReac
 npm install
 npm test
 ```
+
+## SDK Method Coverage Table (#775)
+
+| Contract | Method | Error Code Mapping | Compile-Time Checked |
+| :--- | :--- | :--- | :--- |
+| `invoice-escrow` | `initialize` | `AlreadyInit`, `InvalidState` | Yes |
+| `invoice-escrow` | `register_invoice` | `InvoiceAlreadyExists`, `InvalidAmount` | Yes |
+| `invoice-escrow` | `fund_invoice` | `InvoiceNotFound`, `DeadlinePassed` | Yes |
+| `invoice-escrow` | `release_escrow_with_bonus` | `Unauthorized`, `NotFunded` | Yes |
+| `payment-distributor`| `distribute_payment` | `InsufficientBalance`, `HoldersNotFound` | Yes |
+| `upgrade-proxy` | `forward` | `Frozen`, `LogicNotSet` | Yes |
+| `upgrade-proxy` | `check_upgrade_dependencies` | `IncompatibleDependency` | Yes |

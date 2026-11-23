@@ -131,20 +131,14 @@ fn validate_weights(weights: &Vec<u32>) -> bool {
 
 /// Compute per-invoice allocations for an investor given weights and deposited
 /// amount. Remainder from rounding goes to the last invoice.
-fn compute_allocations(
-    env: &Env,
-    deposited: i128,
-    weights: &Vec<u32>,
-) -> Result<Vec<i128>, Error> {
+fn compute_allocations(env: &Env, deposited: i128, weights: &Vec<u32>) -> Result<Vec<i128>, Error> {
     let count = weights.len();
     let mut allocs: Vec<i128> = Vec::new(env);
     let mut distributed: i128 = 0;
     let last = count - 1;
     for i in 0..count {
         let share = if i == last {
-            deposited
-                .checked_sub(distributed)
-                .ok_or(Error::Overflow)?
+            deposited.checked_sub(distributed).ok_or(Error::Overflow)?
         } else {
             deposited
                 .checked_mul(weights.get_unchecked(i) as i128)
@@ -201,11 +195,7 @@ impl PoolRebalance {
         let cfg = load_config(&env)?;
         cfg.admin.require_auth();
 
-        if env
-            .storage()
-            .persistent()
-            .has(&StorageKey::Pool(pool_id))
-        {
+        if env.storage().persistent().has(&StorageKey::Pool(pool_id)) {
             // Already registered; ignore
             return Ok(());
         }
@@ -250,16 +240,10 @@ impl PoolRebalance {
             let mut investors = load_investors(&env, pool_id);
             investors.push_back(investor.clone());
             save_investors(&env, pool_id, &investors);
-            pool.investor_count = pool
-                .investor_count
-                .checked_add(1)
-                .ok_or(Error::Overflow)?;
+            pool.investor_count = pool.investor_count.checked_add(1).ok_or(Error::Overflow)?;
         }
 
-        pool.tvl = pool
-            .tvl
-            .checked_add(deposited)
-            .ok_or(Error::Overflow)?;
+        pool.tvl = pool.tvl.checked_add(deposited).ok_or(Error::Overflow)?;
         save_pool(&env, pool_id, &pool);
 
         save_position(
@@ -282,11 +266,7 @@ impl PoolRebalance {
     ///
     /// `new_weights` must sum to 10 000 bps and have the same length as the
     /// pool's current weight vector. Returns the proposal id.
-    pub fn propose_rebalance(
-        env: Env,
-        pool_id: u32,
-        new_weights: Vec<u32>,
-    ) -> Result<u32, Error> {
+    pub fn propose_rebalance(env: Env, pool_id: u32, new_weights: Vec<u32>) -> Result<u32, Error> {
         let cfg = load_config(&env)?;
         cfg.admin.require_auth();
 
@@ -407,7 +387,11 @@ impl PoolRebalance {
     }
 
     /// Returns an investor's current position.
-    pub fn get_position(env: Env, pool_id: u32, investor: Address) -> Result<InvestorPosition, Error> {
+    pub fn get_position(
+        env: Env,
+        pool_id: u32,
+        investor: Address,
+    ) -> Result<InvestorPosition, Error> {
         load_config(&env)?;
         Ok(load_position(&env, pool_id, &investor))
     }

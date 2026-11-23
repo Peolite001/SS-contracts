@@ -31,4 +31,10 @@ pub enum Error {
     Overflow = 12,
     /// Admin must be a member of the initial signer set.
     AdminNotSigner = 13,
+    /// Proposal nonce is stale (too low).
+    NonceStale = 14,
+    /// Proposal nonce is in the future (too high).
+    NonceFuture = 15,
+    /// Proposal with this nonce already exists.
+    NonceDuplicate = 16,
 }

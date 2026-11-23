@@ -29,16 +29,33 @@ pub fn upgrade_approved(env: &Env, signer: &Address, approval_count: u32, thresh
 
 /// Emit an `UpgradeCancelled` event when an admin cancels a pending proposal.
 pub fn upgrade_cancelled(env: &Env, new_logic: &Address) {
-    env.events().publish(
-        (Symbol::new(env, "UpgradeCancelled"),),
-        new_logic.clone(),
-    );
+    env.events()
+        .publish((Symbol::new(env, "UpgradeCancelled"),), new_logic.clone());
 }
 
 /// Emit a `ProxyFrozen` event when the proxy is frozen or unfrozen.
 pub fn proxy_frozen(env: &Env, frozen: bool) {
+    env.events()
+        .publish((Symbol::new(env, "ProxyFrozen"),), frozen);
+}
+
+/// Emit an `upgrade_dependency_checked` event.
+pub fn upgrade_dependency_checked(
+    env: &Env,
+    contract_id: &Address,
+    version: u32,
+    compatible: bool,
+) {
     env.events().publish(
-        (Symbol::new(env, "ProxyFrozen"),),
-        frozen,
+        (Symbol::new(env, "upgrade_dependency_checked"),),
+        (contract_id.clone(), version, compatible),
+    );
+}
+
+/// Emit an `upgrade_dependency_failed` event.
+pub fn upgrade_dependency_failed(env: &Env, contract_id: &Address, reason: Symbol) {
+    env.events().publish(
+        (Symbol::new(env, "upgrade_dependency_failed"),),
+        (contract_id.clone(), reason),
     );
 }

@@ -7,6 +7,10 @@ pub const ON_TIME_ADJUST_BPS: i32 = -10;
 pub const LATE_ADJUST_BPS: i32 = 15;
 
 pub fn adjust_yield(current_bps: u32, on_time: bool) -> u32 {
-    let delta = if on_time { ON_TIME_ADJUST_BPS } else { LATE_ADJUST_BPS };
+    let delta = if on_time {
+        ON_TIME_ADJUST_BPS
+    } else {
+        LATE_ADJUST_BPS
+    };
     (current_bps as i32 + delta).max(0) as u32
 }

@@ -14,13 +14,7 @@ pub fn pool_rebalance_proposed(
 }
 
 /// Emitted when a rebalance proposal is executed.
-pub fn pool_rebalance_executed(
-    env: &Env,
-    proposal_id: u32,
-    pool_id: u32,
-    new_weights: &Vec<u32>,
-) {
+pub fn pool_rebalance_executed(env: &Env, proposal_id: u32, pool_id: u32, new_weights: &Vec<u32>) {
     let topics = (Symbol::new(env, "PoolRebalanceExecuted"), proposal_id);
-    env.events()
-        .publish(topics, (pool_id, new_weights.clone()));
+    env.events().publish(topics, (pool_id, new_weights.clone()));
 }

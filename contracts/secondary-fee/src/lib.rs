@@ -47,10 +47,7 @@ fn ensure_non_zero_address(env: &Env, address: &Address) -> Result<(), Error> {
 /// Compute the seller/treasury split for `sale_amount` at `fee_bps`.
 /// The fee is floored to whole units and the seller absorbs the rounding dust,
 /// so `net_amount + fee_amount == sale_amount` exactly.
-fn compute_fee(
-    sale_amount: i128,
-    fee_bps: u32,
-) -> Result<FeeReceipt, Error> {
+fn compute_fee(sale_amount: i128, fee_bps: u32) -> Result<FeeReceipt, Error> {
     if sale_amount <= 0 {
         return Err(Error::InvalidAmount);
     }
@@ -59,9 +56,7 @@ fn compute_fee(
         .ok_or(Error::Overflow)?
         .checked_div(MAX_FEE_BPS as i128)
         .ok_or(Error::Overflow)?;
-    let net_amount = sale_amount
-        .checked_sub(fee_amount)
-        .ok_or(Error::Overflow)?;
+    let net_amount = sale_amount.checked_sub(fee_amount).ok_or(Error::Overflow)?;
     Ok(FeeReceipt {
         sale_amount,
         net_amount,

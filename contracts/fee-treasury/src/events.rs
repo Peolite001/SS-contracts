@@ -1,12 +1,7 @@
 use crate::types::SplitAmounts;
 use soroban_sdk::{Address, BytesN, Env, Symbol};
 
-pub fn fee_collected(
-    env: &Env,
-    invoice_id: &BytesN<32>,
-    fee_amount: i128,
-    splits: &SplitAmounts,
-) {
+pub fn fee_collected(env: &Env, invoice_id: &BytesN<32>, fee_amount: i128, splits: &SplitAmounts) {
     let topics = (Symbol::new(env, "FeeCollected"), invoice_id.clone());
     let timestamp = env.ledger().timestamp();
     env.events().publish(

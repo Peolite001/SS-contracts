@@ -12,9 +12,7 @@ fn parse_event(env: &Env, event: &soroban_sdk::xdr::ContractEvent) -> (Address, 
     let contract_addr = match &event.contract_id {
         Some(hash) => Address::try_from_val(
             env,
-            &soroban_sdk::xdr::ScVal::Address(soroban_sdk::xdr::ScAddress::Contract(
-                hash.clone(),
-            )),
+            &soroban_sdk::xdr::ScVal::Address(soroban_sdk::xdr::ScAddress::Contract(hash.clone())),
         )
         .unwrap(),
         None => Address::generate(env),

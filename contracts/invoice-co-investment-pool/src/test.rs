@@ -91,7 +91,9 @@ fn setup<'a>(env: &'a Env) -> Ctx<'a> {
 
     let admin = Address::generate(env);
     let token_admin = Address::generate(env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(token_admin)
+        .address();
     let escrow_id = env.register(MockEscrow, ());
     let contract_id = env.register(InvoiceCoInvestmentPool, ());
     let client = InvoiceCoInvestmentPoolClient::new(env, &contract_id);

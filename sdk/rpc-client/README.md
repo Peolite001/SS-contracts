@@ -25,6 +25,14 @@ resource fee and ledger footprint. `simulateContractCall` builds the unsigned
 invocation before estimating. A simulation failure is surfaced as an error;
 the transaction is never signed or submitted by these helpers.
 
+## Funding lifecycle example
+
+[`examples/funding-lifecycle.ts`](examples/funding-lifecycle.ts) runs the full
+create -> invest -> release -> settle flow against a deployed escrow, payment
+token and distributor, falls back to `refund` on failure, marks which calls
+need which signer, and maps contract failures to typed error names with
+`contractErrorsForCode` from `@stellarstate/ss-contracts-sdk`.
+
 ## Development
 
 ```sh

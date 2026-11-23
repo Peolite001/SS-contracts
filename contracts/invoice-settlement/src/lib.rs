@@ -3,8 +3,8 @@
 mod events;
 mod types;
 
-pub use types::{Error, HolderShare, SettlementInvoice};
 use types::StorageKey;
+pub use types::{Error, HolderShare, SettlementInvoice};
 
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env, Vec};
 
@@ -120,9 +120,7 @@ impl InvoiceSettlement {
             if holder.fractions <= 0 {
                 return Err(Error::InvalidHolders);
             }
-            total = total
-                .checked_add(holder.fractions)
-                .ok_or(Error::Overflow)?;
+            total = total.checked_add(holder.fractions).ok_or(Error::Overflow)?;
         }
         let data = SettlementInvoice {
             invoice_id,
@@ -205,11 +203,7 @@ impl InvoiceSettlement {
         Ok(distributed)
     }
 
-    pub fn get_payout(
-        env: Env,
-        invoice_id: BytesN<32>,
-        wallet: Address,
-    ) -> Result<i128, Error> {
+    pub fn get_payout(env: Env, invoice_id: BytesN<32>, wallet: Address) -> Result<i128, Error> {
         let data = invoice(&env, &invoice_id)?;
         let distributable = net_amount(&env, data.repaid_amount)?;
         holder_payout(&data, &wallet, distributable)

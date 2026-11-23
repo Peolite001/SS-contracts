@@ -72,16 +72,18 @@ impl CircuitBreakerContract {
             .instance()
             .set(&DataKey::Threshold(metric_type), &threshold);
 
-        env.events().publish(
-            (symbol_short!("set_thr"), metric_type),
-            max_value,
-        );
+        env.events()
+            .publish((symbol_short!("set_thr"), metric_type), max_value);
     }
 
     /// Record a metric value from platform contracts
     pub fn record_metric(env: Env, metric_type: MetricType, value: i128) {
         // Check if circuit breaker is already tripped
-        let is_paused: bool = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+        let is_paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false);
         if is_paused {
             panic!("CircuitBreakerActive");
         }
@@ -113,11 +115,18 @@ impl CircuitBreakerContract {
                         .get(&DataKey::HourlyVolume)
                         .unwrap_or(0);
                     let new_volume = current_volume + value;
-                    env.storage().instance().set(&DataKey::HourlyVolume, &new_volume);
+                    env.storage()
+                        .instance()
+                        .set(&DataKey::HourlyVolume, &new_volume);
 
                     // Check if threshold breached
                     if new_volume > threshold.max_value {
-                        Self::trip_circuit_breaker(env.clone(), metric_type, threshold.max_value, new_volume);
+                        Self::trip_circuit_breaker(
+                            env.clone(),
+                            metric_type,
+                            threshold.max_value,
+                            new_volume,
+                        );
                         return;
                     }
                 }
@@ -131,10 +140,8 @@ impl CircuitBreakerContract {
         }
 
         // Record the metric
-        env.events().publish(
-            (symbol_short!("metric"), metric_type),
-            value,
-        );
+        env.events()
+            .publish((symbol_short!("metric"), metric_type), value);
     }
 
     /// Internal function to trip the circuit breaker
@@ -153,27 +160,31 @@ impl CircuitBreakerContract {
         admin.require_auth();
 
         env.storage().instance().set(&DataKey::Paused, &false);
-        
+
         // Reset hourly volume tracking
         env.storage().instance().set(&DataKey::HourlyVolume, &0i128);
         env.storage()
             .instance()
             .set(&DataKey::HourlyVolumeStartTime, &env.ledger().timestamp());
 
-        env.events().publish(
-            (symbol_short!("resumed"),),
-            (),
-        );
+        env.events().publish((symbol_short!("resumed"),), ());
     }
 
     /// Check if circuit breaker is active
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().get(&DataKey::Paused).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
     }
 
     /// Validate operation (called by investment/settlement contracts)
     pub fn validate_operation(env: Env) {
-        let is_paused: bool = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+        let is_paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false);
         if is_paused {
             panic!("CircuitBreakerActive");
         }
@@ -204,7 +215,7 @@ mod test {
         client.initialize(&admin);
 
         client.set_threshold(&MetricType::SingleInvestment, &1000000);
-        
+
         let threshold = client.get_threshold(&MetricType::SingleInvestment);
         assert_eq!(threshold, Some(1000000));
     }

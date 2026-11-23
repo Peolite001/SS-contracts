@@ -105,3 +105,37 @@ fn test_score_factors_breakdown_accurate() {
     assert_eq!(score.score, 50);
     assert_eq!(score.tier, CreditTier::B);
 }
+
+#[test]
+fn test_downgrade_grace_period_and_renewal_cancellation() {
+    use soroban_sdk::testutils::Ledger as _;
+
+    let (env, client, admin) = setup();
+    let issuer = Address::generate(&env);
+
+    client.set_downgrade_grace_ledgers(&admin, &10);
+    client.compute_credit_score(&admin, &issuer, &high_quality_factors(&env));
+
+    // Propose downgrade -> stored as pending, active score remains AAA
+    let pending = client.propose_downgrade(&admin, &issuer, &low_quality_factors(&env));
+    assert!(pending.is_some());
+    assert_eq!(client.get_credit_score(&issuer).tier, CreditTier::AAA);
+
+    // Before grace expires, execution fails
+    assert_eq!(
+        client.try_execute_pending_downgrade(&admin, &issuer),
+        Err(Ok(Error::GracePeriodNotExpired))
+    );
+
+    // Authorized renewal cancels pending downgrade
+    client.renew_and_cancel_downgrade(&admin, &issuer);
+    assert!(client.get_pending_downgrade(&issuer).is_none());
+
+    // Propose again and advance ledger past grace boundary -> executes once
+    client.propose_downgrade(&admin, &issuer, &low_quality_factors(&env));
+    env.ledger()
+        .set_sequence_number(env.ledger().sequence() + 10);
+    let updated = client.execute_pending_downgrade(&admin, &issuer);
+    assert_eq!(updated.tier, CreditTier::C);
+    assert_eq!(client.get_credit_score(&issuer).tier, CreditTier::C);
+}

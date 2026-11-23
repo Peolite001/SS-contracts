@@ -259,9 +259,7 @@ fn test_take_daily_snapshots_admin_only_records_all_wallets() {
 
     // Missing admin auth is rejected.
     env.set_auths(&[]);
-    assert!(client
-        .try_take_daily_snapshots(&admin, &wallets)
-        .is_err());
+    assert!(client.try_take_daily_snapshots(&admin, &wallets).is_err());
 }
 
 #[test]
@@ -361,7 +359,10 @@ fn test_failing_token_contract_is_skipped() {
     let snapshot_id = client.take_portfolio_snapshot(&wallet);
     assert_eq!(snapshot_id, 1);
     assert_eq!(
-        client.get_portfolio_snapshot(&wallet, &snapshot_id).balances.len(),
+        client
+            .get_portfolio_snapshot(&wallet, &snapshot_id)
+            .balances
+            .len(),
         0
     );
 }

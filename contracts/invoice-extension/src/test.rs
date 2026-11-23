@@ -55,7 +55,9 @@ fn test_extension_passes_with_majority_and_updates_maturity() {
     let f = setup(&env);
     let new_maturity = MATURITY + 30 * DAY;
 
-    let pid = f.client.propose_extension(&f.id, &new_maturity, &reason(&env));
+    let pid = f
+        .client
+        .propose_extension(&f.id, &new_maturity, &reason(&env));
     assert_eq!(env.events().all().events().len(), 1);
 
     f.client.vote_extension(&pid, &f.holder_a, &true);
@@ -101,7 +103,9 @@ fn test_extension_limits_and_due_date_enforced() {
         .client
         .try_propose_extension(&f.id, &(MATURITY + 90 * DAY + 1), &reason(&env));
     assert_eq!(res, Err(Ok(Error::MaxExtensionExceeded)));
-    let res = f.client.try_propose_extension(&f.id, &MATURITY, &reason(&env));
+    let res = f
+        .client
+        .try_propose_extension(&f.id, &MATURITY, &reason(&env));
     assert_eq!(res, Err(Ok(Error::InvalidMaturity)));
 
     env.ledger().set_timestamp(MATURITY);

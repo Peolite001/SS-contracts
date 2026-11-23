@@ -75,11 +75,7 @@ impl PriceStabilisationContract {
         Ok(())
     }
 
-    pub fn record_price(
-        env: Env,
-        invoice_id: BytesN<32>,
-        price: i128,
-    ) -> Result<(), Error> {
+    pub fn record_price(env: Env, invoice_id: BytesN<32>, price: i128) -> Result<(), Error> {
         let operator: Address = env
             .storage()
             .instance()
@@ -96,7 +92,10 @@ impl PriceStabilisationContract {
             .persistent()
             .get(&key)
             .unwrap_or(Vec::new(&env));
-        history.push_back(PriceObservation { price, timestamp: now });
+        history.push_back(PriceObservation {
+            price,
+            timestamp: now,
+        });
         if history.len() > 20 {
             history.remove(0);
         }
@@ -104,10 +103,7 @@ impl PriceStabilisationContract {
         Ok(())
     }
 
-    pub fn trigger_stabilisation(
-        env: Env,
-        invoice_id: BytesN<32>,
-    ) -> Result<u32, Error> {
+    pub fn trigger_stabilisation(env: Env, invoice_id: BytesN<32>) -> Result<u32, Error> {
         let operator: Address = env
             .storage()
             .instance()
@@ -132,7 +128,9 @@ impl PriceStabilisationContract {
 
         for i in 0..history.len() - 1 {
             let obs = history.get(i).unwrap();
-            if now.saturating_sub(obs.timestamp) <= ONE_HOUR_SECONDS && obs.price > current_obs.price {
+            if now.saturating_sub(obs.timestamp) <= ONE_HOUR_SECONDS
+                && obs.price > current_obs.price
+            {
                 if obs.price > baseline_price {
                     baseline_price = obs.price;
                 }
@@ -157,11 +155,7 @@ impl PriceStabilisationContract {
             .ok_or(Error::InvalidPrice)?;
 
         let reserve_key = DataKey::Reserve(invoice_id.clone());
-        let reserve: i128 = env
-            .storage()
-            .persistent()
-            .get(&reserve_key)
-            .unwrap_or(0);
+        let reserve: i128 = env.storage().persistent().get(&reserve_key).unwrap_or(0);
 
         if reserve < floor_price {
             return Err(Error::InsufficientReserve);
@@ -174,7 +168,9 @@ impl PriceStabilisationContract {
 
         let order_cost = quantity * floor_price;
         let remaining_reserve = reserve - order_cost;
-        env.storage().persistent().set(&reserve_key, &remaining_reserve);
+        env.storage()
+            .persistent()
+            .set(&reserve_key, &remaining_reserve);
         env.storage()
             .persistent()
             .set(&DataKey::IsActive(invoice_id.clone()), &true);
@@ -192,10 +188,7 @@ impl PriceStabilisationContract {
         Ok(order_id)
     }
 
-    pub fn get_stabilisation_status(
-        env: Env,
-        invoice_id: BytesN<32>,
-    ) -> StabilisationStatus {
+    pub fn get_stabilisation_status(env: Env, invoice_id: BytesN<32>) -> StabilisationStatus {
         let reserve_balance: i128 = env
             .storage()
             .persistent()
@@ -218,7 +211,11 @@ impl PriceStabilisationContract {
             .unwrap_or(0);
 
         let key = DataKey::PriceObservation(invoice_id);
-        let last_price = if let Some(history) = env.storage().persistent().get::<DataKey, Vec<PriceObservation>>(&key) {
+        let last_price = if let Some(history) = env
+            .storage()
+            .persistent()
+            .get::<DataKey, Vec<PriceObservation>>(&key)
+        {
             if !history.is_empty() {
                 history.get(history.len() - 1).unwrap().price
             } else {

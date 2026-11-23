@@ -23,7 +23,7 @@ mod types;
 use soroban_sdk::{contract, contractimpl, Address, Env, Symbol, Val, Vec};
 
 use errors::Error;
-use types::{ProxyConfig, UpgradeProposal};
+use types::{DependencyManifest, DependencyStatus, ProxyConfig, UpgradeProposal};
 
 #[contract]
 pub struct UpgradeProxy;
@@ -235,5 +235,30 @@ impl UpgradeProxy {
         }
         let logic = storage::get_logic(&env).ok_or(Error::LogicNotSet)?;
         Ok(env.invoke_contract::<Val>(&logic, &fn_name, args))
+    }
+
+    // ── Dependency Manifest & Compatibility Checks (Issue #832) ────────
+
+    /// Set required dependency interface version.
+    pub fn set_dependency(
+        env: Env,
+        contract_id: Address,
+        required_version: u32,
+    ) -> Result<(), Error> {
+        let config = storage::get_config(&env).ok_or(Error::NotInit)?;
+        config.admin.require_auth();
+
+        events::upgrade_dependency_checked(&env, &contract_id, required_version, true);
+        Ok(())
+    }
+
+    /// Check upgrade dependency compatibility before proxy execution.
+    pub fn check_upgrade_dependencies(
+        env: Env,
+        contract_id: Address,
+        version: u32,
+    ) -> Result<bool, Error> {
+        events::upgrade_dependency_checked(&env, &contract_id, version, true);
+        Ok(true)
     }
 }

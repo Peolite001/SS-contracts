@@ -37,12 +37,20 @@ pub fn get_limit(env: &Env, invoice_id: &BytesN<32>) -> Option<BuyLimit> {
 }
 
 /// The wallet's window as of now, or a fresh one if none exists or it expired.
-fn current_window(env: &Env, invoice_id: &BytesN<32>, wallet: &Address, limit: &BuyLimit) -> BuyWindow {
+fn current_window(
+    env: &Env,
+    invoice_id: &BytesN<32>,
+    wallet: &Address,
+    limit: &BuyLimit,
+) -> BuyWindow {
     let now = env.ledger().timestamp();
     let key = StorageKey::BuyWindow(invoice_id.clone(), wallet.clone());
     match env.storage().persistent().get::<_, BuyWindow>(&key) {
         Some(window) if now < window.window_start.saturating_add(limit.window_seconds) => window,
-        _ => BuyWindow { window_start: now, bought: 0 },
+        _ => BuyWindow {
+            window_start: now,
+            bought: 0,
+        },
     }
 }
 
@@ -59,7 +67,12 @@ pub fn remaining(env: &Env, invoice_id: &BytesN<32>, wallet: &Address) -> i128 {
 
 /// Count `amount` against the wallet's window, failing with `BuyLimitExceeded`
 /// if it would push cumulative purchases past the limit.
-pub fn record_purchase(env: &Env, invoice_id: &BytesN<32>, wallet: &Address, amount: i128) -> Result<(), Error> {
+pub fn record_purchase(
+    env: &Env,
+    invoice_id: &BytesN<32>,
+    wallet: &Address,
+    amount: i128,
+) -> Result<(), Error> {
     let Some(limit) = get_limit(env, invoice_id) else {
         return Ok(());
     };

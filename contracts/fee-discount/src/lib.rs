@@ -62,13 +62,8 @@ fn apply_discount(
 ) -> Result<(LoyaltyTier, i128, i128), Error> {
     let tier = get_wallet_tier(env, wallet);
     let bps = discount_bps_for_tier(tier);
-    let discount = original_fee
-        .checked_mul(bps)
-        .ok_or(Error::Overflow)?
-        / BPS_DENOMINATOR;
-    let final_fee = original_fee
-        .checked_sub(discount)
-        .ok_or(Error::Overflow)?;
+    let discount = original_fee.checked_mul(bps).ok_or(Error::Overflow)? / BPS_DENOMINATOR;
+    let final_fee = original_fee.checked_sub(discount).ok_or(Error::Overflow)?;
     Ok((tier, discount, final_fee))
 }
 
@@ -130,9 +125,7 @@ impl FeeDiscount {
             return Err(Error::InvalidFeeBps);
         }
         cfg.platform_fee_bps = new_bps;
-        env.storage()
-            .instance()
-            .set(&StorageKey::Config, &cfg);
+        env.storage().instance().set(&StorageKey::Config, &cfg);
         Ok(())
     }
 

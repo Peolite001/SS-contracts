@@ -87,7 +87,9 @@ impl YieldVesting {
             tranches: tranches.clone(),
         };
 
-        env.storage().persistent().set(&StorageKey::Vest(vest_id), &schedule);
+        env.storage()
+            .persistent()
+            .set(&StorageKey::Vest(vest_id), &schedule);
 
         events::vest_created(
             &env,
@@ -131,7 +133,9 @@ impl YieldVesting {
             .checked_add(tranche.amount)
             .ok_or(Error::InvalidAmount)?;
 
-        env.storage().persistent().set(&StorageKey::Vest(vest_id), &schedule);
+        env.storage()
+            .persistent()
+            .set(&StorageKey::Vest(vest_id), &schedule);
 
         events::tranche_released(
             &env,
@@ -144,7 +148,11 @@ impl YieldVesting {
         let client = token::Client::new(&env, &schedule.token);
         let contract_balance = client.balance(&env.current_contract_address());
         if contract_balance >= tranche.amount {
-            client.transfer(&env.current_contract_address(), &schedule.beneficiary, &tranche.amount);
+            client.transfer(
+                &env.current_contract_address(),
+                &schedule.beneficiary,
+                &tranche.amount,
+            );
         }
 
         Ok(tranche.amount)
@@ -185,13 +193,7 @@ impl YieldVesting {
                 .checked_add(tranche.amount)
                 .ok_or(Error::InvalidAmount)?;
 
-            events::tranche_released(
-                &env,
-                vest_id,
-                idx,
-                &schedule.beneficiary,
-                tranche.amount,
-            );
+            events::tranche_released(&env, vest_id, idx, &schedule.beneficiary, tranche.amount);
         }
 
         schedule.claimed_amount = schedule
@@ -199,12 +201,18 @@ impl YieldVesting {
             .checked_add(total_claimed)
             .ok_or(Error::InvalidAmount)?;
 
-        env.storage().persistent().set(&StorageKey::Vest(vest_id), &schedule);
+        env.storage()
+            .persistent()
+            .set(&StorageKey::Vest(vest_id), &schedule);
 
         let client = token::Client::new(&env, &schedule.token);
         let contract_balance = client.balance(&env.current_contract_address());
         if contract_balance >= total_claimed {
-            client.transfer(&env.current_contract_address(), &schedule.beneficiary, &total_claimed);
+            client.transfer(
+                &env.current_contract_address(),
+                &schedule.beneficiary,
+                &total_claimed,
+            );
         }
 
         Ok(total_claimed)
@@ -233,13 +241,7 @@ impl YieldVesting {
                     .ok_or(Error::InvalidAmount)?;
                 claimed_any = true;
 
-                events::tranche_released(
-                    &env,
-                    vest_id,
-                    i,
-                    &schedule.beneficiary,
-                    tranche.amount,
-                );
+                events::tranche_released(&env, vest_id, i, &schedule.beneficiary, tranche.amount);
             }
         }
 
@@ -252,12 +254,18 @@ impl YieldVesting {
             .checked_add(total_claimed)
             .ok_or(Error::InvalidAmount)?;
 
-        env.storage().persistent().set(&StorageKey::Vest(vest_id), &schedule);
+        env.storage()
+            .persistent()
+            .set(&StorageKey::Vest(vest_id), &schedule);
 
         let client = token::Client::new(&env, &schedule.token);
         let contract_balance = client.balance(&env.current_contract_address());
         if contract_balance >= total_claimed {
-            client.transfer(&env.current_contract_address(), &schedule.beneficiary, &total_claimed);
+            client.transfer(
+                &env.current_contract_address(),
+                &schedule.beneficiary,
+                &total_claimed,
+            );
         }
 
         Ok(total_claimed)

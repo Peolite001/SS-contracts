@@ -165,8 +165,16 @@ fn test_full_proceeds_pays_every_class_completely() {
 
     assert_eq!(result.total_paid, 500);
     for alloc in result.allocations.iter() {
-        assert_eq!(alloc.amount, 100, "class {:?} should be fully paid", alloc.class);
-        assert_eq!(alloc.shortfall, 0, "class {:?} should have zero shortfall", alloc.class);
+        assert_eq!(
+            alloc.amount, 100,
+            "class {:?} should be fully paid",
+            alloc.class
+        );
+        assert_eq!(
+            alloc.shortfall, 0,
+            "class {:?} should have zero shortfall",
+            alloc.class
+        );
     }
 }
 

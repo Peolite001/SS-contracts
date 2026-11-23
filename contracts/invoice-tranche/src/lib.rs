@@ -70,7 +70,8 @@ impl InvoiceTrancheContract {
             return Err(Error::InvalidAmount);
         }
 
-        if tranche_type != TrancheType::Senior as u32 && tranche_type != TrancheType::Junior as u32 {
+        if tranche_type != TrancheType::Senior as u32 && tranche_type != TrancheType::Junior as u32
+        {
             return Err(Error::InvalidTrancheType);
         }
 
@@ -86,16 +87,24 @@ impl InvoiceTrancheContract {
         }
 
         if tranche_type == TrancheType::Senior as u32 {
-            config.senior_filled = config.senior_filled.checked_add(amount).ok_or(Error::InvalidAmount)?;
+            config.senior_filled = config
+                .senior_filled
+                .checked_add(amount)
+                .ok_or(Error::InvalidAmount)?;
         } else {
-            config.junior_filled = config.junior_filled.checked_add(amount).ok_or(Error::InvalidAmount)?;
+            config.junior_filled = config
+                .junior_filled
+                .checked_add(amount)
+                .ok_or(Error::InvalidAmount)?;
         }
 
         env.storage().persistent().set(&tranche_key, &config);
 
         let inv_key = DataKey::Investment(invoice_id.clone(), investor.clone(), tranche_type);
         let previous: i128 = env.storage().persistent().get(&inv_key).unwrap_or(0);
-        env.storage().persistent().set(&inv_key, &(previous + amount));
+        env.storage()
+            .persistent()
+            .set(&inv_key, &(previous + amount));
 
         events::tranche_investment_recorded(&env, &invoice_id, &investor, tranche_type, amount);
 
@@ -157,10 +166,7 @@ impl InvoiceTrancheContract {
         Ok((senior_payout, junior_payout))
     }
 
-    pub fn get_tranche_status(
-        env: Env,
-        invoice_id: BytesN<32>,
-    ) -> Result<TrancheStatus, Error> {
+    pub fn get_tranche_status(env: Env, invoice_id: BytesN<32>) -> Result<TrancheStatus, Error> {
         let tranche_key = DataKey::Tranche(invoice_id);
         let config: TrancheConfig = env
             .storage()

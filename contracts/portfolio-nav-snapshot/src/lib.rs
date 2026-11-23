@@ -27,6 +27,7 @@ impl PortfolioNavSnapshotContract {
 
     pub fn set_invoice_price(
         env: Env,
+        caller: Address,
         invoice_id: BytesN<32>,
         price: i128,
     ) -> Result<(), Error> {
@@ -41,9 +42,10 @@ impl PortfolioNavSnapshotContract {
             .get(&DataKey::Operator)
             .ok_or(Error::NotInitialized)?;
 
-        if admin.require_auth().is_err() && operator.require_auth().is_err() {
+        if caller != admin && caller != operator {
             return Err(Error::Unauthorized);
         }
+        caller.require_auth();
 
         if price < 0 {
             return Err(Error::InvalidAmount);
@@ -57,6 +59,7 @@ impl PortfolioNavSnapshotContract {
 
     pub fn set_investor_balance(
         env: Env,
+        caller: Address,
         wallet: Address,
         invoice_id: BytesN<32>,
         balance: i128,
@@ -72,9 +75,10 @@ impl PortfolioNavSnapshotContract {
             .get(&DataKey::Operator)
             .ok_or(Error::NotInitialized)?;
 
-        if admin.require_auth().is_err() && operator.require_auth().is_err() {
+        if caller != admin && caller != operator {
             return Err(Error::Unauthorized);
         }
+        caller.require_auth();
 
         if balance < 0 {
             return Err(Error::InvalidAmount);
@@ -133,7 +137,10 @@ impl PortfolioNavSnapshotContract {
             let balance: i128 = env
                 .storage()
                 .persistent()
-                .get(&DataKey::FractionBalance(wallet.clone(), invoice_id.clone()))
+                .get(&DataKey::FractionBalance(
+                    wallet.clone(),
+                    invoice_id.clone(),
+                ))
                 .unwrap_or(0);
             let price: i128 = env
                 .storage()

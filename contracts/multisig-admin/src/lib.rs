@@ -11,6 +11,10 @@
 //! Executed actions are recorded as observable contract state (whitelist map,
 //! fee bps, pause flag, settlement-trigger flags) and emitted as events so
 //! downstream contracts and indexers can react.
+//!
+//! Replay protection: each proposer must supply a monotonic nonce. Nonces
+//! are tracked per proposer and advance atomically on proposal creation.
+//! Stale, future, or duplicate nonces are rejected.
 
 #![no_std]
 
@@ -19,11 +23,12 @@ mod events;
 mod storage;
 mod types;
 
-use soroban_sdk::{contract, contractimpl, Address, Env, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Env, Symbol, Vec, U256};
 
 pub use types::{ActionParams, ActionType, Config, Proposal, ProposalStatus};
 
 use errors::Error;
+use storage::{get_proposer_nonce, set_proposer_nonce};
 
 /// Upper bound on the signer set, bounding approval-count loops.
 const MAX_SIGNERS: u32 = 20;
@@ -76,20 +81,45 @@ impl MultisigAdmin {
     /// Create a proposal for a privileged action. Callable by any authorized
     /// signer; the proposer counts as the first approval. Returns the new
     /// proposal id.
+    ///
+    /// The caller must supply a `nonce` equal to the proposer's current
+    /// expected nonce (starting from 1). This prevents replay of proposals
+    /// across deployments or after proposer key rotation.
     pub fn propose_action(
         env: Env,
         proposer: Address,
         action_type: ActionType,
         params: ActionParams,
+        nonce: U256,
     ) -> Result<u32, Error> {
         proposer.require_auth();
         let config = storage::get_config(&env).ok_or(Error::NotInit)?;
         Self::ensure_signer(&config, &proposer)?;
         Self::validate_params(&action_type, &params)?;
 
-        let proposal_id = storage::get_next_proposal_id(&env)
-            .checked_add(1)
-            .ok_or(Error::Overflow)?;
+        // Replay protection: verify and consume the proposer's nonce.
+        let expected_nonce = get_proposer_nonce(&env, &proposer);
+        let one = U256::from_u32(1);
+        let next_nonce = expected_nonce.checked_add(one).ok_or(Error::Overflow)?;
+
+        if nonce < expected_nonce {
+            return Err(Error::NonceStale);
+        }
+        if nonce > expected_nonce {
+            return Err(Error::NonceFuture);
+        }
+
+        // Check if a proposal with this nonce already exists for this proposer
+        let next_proposal_id = storage::get_next_proposal_id(&env);
+        for id in 1..=next_proposal_id {
+            if let Some(p) = storage::get_proposal(&env, id) {
+                if p.proposer == proposer && p.nonce == nonce {
+                    return Err(Error::NonceDuplicate);
+                }
+            }
+        }
+
+        let proposal_id = next_proposal_id.checked_add(1).ok_or(Error::Overflow)?;
         storage::set_next_proposal_id(&env, proposal_id);
 
         let mut approvals = Vec::new(&env);
@@ -98,6 +128,7 @@ impl MultisigAdmin {
         let proposal = Proposal {
             id: proposal_id,
             proposer: proposer.clone(),
+            nonce,
             action_type,
             params,
             approvals,
@@ -108,7 +139,12 @@ impl MultisigAdmin {
         };
         storage::set_proposal(&env, proposal_id, &proposal);
 
+        // Advance the proposer's nonce atomically.
+        set_proposer_nonce(&env, &proposer, next_nonce);
+
         events::action_proposed(&env, proposal_id, &proposer, action_type);
+        events::nonce_consumed(&env, &proposer, nonce);
+
         Ok(proposal_id)
     }
 
@@ -248,6 +284,12 @@ impl MultisigAdmin {
     /// Whether settlement was triggered through the multi-sig for an invoice.
     pub fn is_settlement_triggered(env: Env, invoice_id: Symbol) -> bool {
         storage::is_settlement_triggered(&env, &invoice_id)
+    }
+
+    /// Return the next expected nonce for a proposer (starts at 1).
+    /// Returns 0 if the proposer has never submitted a proposal.
+    pub fn get_proposer_nonce(env: Env, proposer: Address) -> U256 {
+        storage::get_proposer_nonce(&env, &proposer)
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────

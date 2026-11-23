@@ -22,7 +22,9 @@ impl OrderBook {
         }
         env.storage().instance().set(&StorageKey::Admin, &admin);
         env.storage().instance().set(&StorageKey::Token, &token);
-        env.storage().instance().set(&StorageKey::NextOrderId, &1u32);
+        env.storage()
+            .instance()
+            .set(&StorageKey::NextOrderId, &1u32);
         Ok(())
     }
 

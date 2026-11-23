@@ -10,6 +10,8 @@ pub fn referral_tier_upgraded(
     cumulative_volume: i128,
 ) {
     let topics = (Symbol::new(env, "ReferralTierUpgraded"), wallet.clone());
-    env.events()
-        .publish(topics, (old_tier as u32, new_tier as u32, cumulative_volume));
+    env.events().publish(
+        topics,
+        (old_tier as u32, new_tier as u32, cumulative_volume),
+    );
 }

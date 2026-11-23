@@ -62,7 +62,9 @@ impl InsurancePool {
         if config.deduction_bps > Self::MAX_DEDUCTION_BPS {
             panic!("Insurance deduction exceeds maximum allowed rate");
         }
-        env.storage().instance().set(&InsuranceStorageKey::Config, config);
+        env.storage()
+            .instance()
+            .set(&InsuranceStorageKey::Config, config);
     }
 
     /// Retrieve the current insurance pool configuration.
@@ -80,7 +82,11 @@ impl InsurancePool {
 
     /// Calculates and records the insurance pool deduction on invoice registration.
     /// Returns the deducted amount.
-    pub fn record_invoice_deduction(env: &Env, invoice_id: &BytesN<32>, funding_target: i128) -> i128 {
+    pub fn record_invoice_deduction(
+        env: &Env,
+        invoice_id: &BytesN<32>,
+        funding_target: i128,
+    ) -> i128 {
         let config = match Self::get_config(env) {
             Some(cfg) if cfg.is_active && cfg.deduction_bps > 0 => cfg,
             _ => return 0,
@@ -98,7 +104,9 @@ impl InsurancePool {
 
         let current_balance = Self::get_balance(env);
         let new_balance = current_balance + deduction;
-        env.storage().instance().set(&InsuranceStorageKey::PoolBalance, &new_balance);
+        env.storage()
+            .instance()
+            .set(&InsuranceStorageKey::PoolBalance, &new_balance);
 
         env.events().publish(
             (Symbol::new(env, "insurance"), Symbol::new(env, "deducted")),
@@ -139,7 +147,9 @@ impl InsurancePool {
         }
 
         let new_balance = current_balance - claim_amount;
-        env.storage().instance().set(&InsuranceStorageKey::PoolBalance, &new_balance);
+        env.storage()
+            .instance()
+            .set(&InsuranceStorageKey::PoolBalance, &new_balance);
         env.storage().persistent().set(
             &InsuranceStorageKey::ClaimRecord(invoice_id.clone()),
             &claim_amount,

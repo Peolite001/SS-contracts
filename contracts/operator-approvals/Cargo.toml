@@ -1,0 +1,15 @@
+[package]
+name = "operator-approvals"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Scoped operator approvals for delegated payout claims"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

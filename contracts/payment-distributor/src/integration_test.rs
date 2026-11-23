@@ -97,7 +97,8 @@ fn create_and_fund(ctx: &FlowContext<'_>, amount: i128, due_date: u64) {
         &None,
         &None,
     );
-    ctx.escrow.fund_escrow_legacy(&ctx.invoice_id, &ctx.buyer, &amount);
+    ctx.escrow
+        .fund_escrow_legacy(&ctx.invoice_id, &ctx.buyer, &amount);
 }
 
 #[test]
@@ -1028,7 +1029,8 @@ fn test_integration_lock_cleared_after_distribute_refund_success() {
         &None,
         &None,
     );
-    ctx.escrow.fund_escrow_legacy(&invoice_id2, &ctx.buyer, &500);
+    ctx.escrow
+        .fund_escrow_legacy(&invoice_id2, &ctx.buyer, &500);
     ctx.payment_asset.mint(&ctx.payer, &500);
     ctx.escrow.record_payment(&invoice_id2, &ctx.payer, &500);
 
@@ -1066,7 +1068,8 @@ fn test_invariant_distributor_balance_solvency() {
 
     // Fund the escrow
     ctx.payment_asset.mint(&ctx.buyer, &50_000);
-    ctx.escrow.fund_escrow_legacy(&invoice_id, &ctx.buyer, &50_000);
+    ctx.escrow
+        .fund_escrow_legacy(&invoice_id, &ctx.buyer, &50_000);
 
     // Verify distributor balance before payment
     let balance_before = ctx.payment_token.balance(&ctx.distributor_id);
@@ -1127,7 +1130,8 @@ fn test_invariant_refund_balance_conservation() {
 
     // Fund with buyer
     ctx.payment_asset.mint(&ctx.buyer, &50_000);
-    ctx.escrow.fund_escrow_legacy(&invoice_id, &ctx.buyer, &50_000);
+    ctx.escrow
+        .fund_escrow_legacy(&invoice_id, &ctx.buyer, &50_000);
 
     // Refund the escrow (no payment recorded)
     env.ledger().set_timestamp(100_001);

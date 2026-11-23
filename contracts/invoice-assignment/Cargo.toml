@@ -1,0 +1,15 @@
+[package]
+name = "invoice-assignment"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Debtor novation with old-debtor, new-debtor and issuer consent"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

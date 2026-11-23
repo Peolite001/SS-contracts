@@ -35,8 +35,18 @@ pub struct CreditScore {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PendingDowngrade {
+    pub proposed_score: CreditScore,
+    pub proposed_at_ledger: u32,
+    pub execute_after_ledger: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StorageKey {
     Admin,
     AuthorisedCaller(Address),
     Score(Address),
+    GracePeriodLedgers,
+    PendingDowngrade(Address),
 }

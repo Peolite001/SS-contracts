@@ -4,7 +4,7 @@
 use soroban_sdk::testutils::{Address as _, Events, Ledger};
 use soroban_sdk::{Address, BytesN, Env, String, Symbol, TryFromVal, TryIntoVal, Val, Vec};
 
-use crate::{Error, PlatformPause, PlatformPauseClient, RESUME_TIMELOCK_SECONDS};
+use crate::{Error, FreezeStatus, PlatformPause, PlatformPauseClient, RESUME_TIMELOCK_SECONDS};
 
 fn zero_address(env: &Env) -> Address {
     Address::from_string(&String::from_str(
@@ -312,4 +312,266 @@ fn test_initialize_rejects_zero_address() {
         client.try_initialize(&zero_address(&env)),
         Err(Ok(Error::InvalidAddress))
     );
+}
+
+// ── Freeze propagation tests ──────────────────────────────────────────────────
+
+#[test]
+fn test_register_contract_for_freeze_propagation() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "InvoiceEscrow");
+
+    client.register_contract(&admin, &contract, &name);
+    assert!(client.is_contract_registered(&contract).unwrap());
+    assert_eq!(client.get_registered_contracts().unwrap().len(), 1);
+}
+
+#[test]
+fn test_register_contract_restricted_to_admin() {
+    let env = Env::default();
+    let (_admin, client) = setup(&env);
+    let impostor = Address::generate(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    assert_eq!(
+        client.try_register_contract(&impostor, &contract, &name),
+        Err(Ok(Error::Unauthorized))
+    );
+}
+
+#[test]
+fn test_register_duplicate_contract_rejected() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    client.register_contract(&admin, &contract, &name);
+    assert_eq!(
+        client.try_register_contract(&admin, &contract, &name),
+        Err(Ok(Error::ContractAlreadyRegistered))
+    );
+}
+
+#[test]
+fn test_register_zero_address_rejected() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    assert_eq!(
+        client.try_register_contract(&admin, &zero_address(&env), &name),
+        Err(Ok(Error::InvalidAddress))
+    );
+}
+
+#[test]
+fn test_unregister_contract() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    client.register_contract(&admin, &contract, &name);
+    assert!(client.is_contract_registered(&contract).unwrap());
+
+    client.unregister_contract(&admin, &contract);
+    assert!(!client.is_contract_registered(&contract).unwrap());
+    assert_eq!(client.get_registered_contracts().unwrap().len(), 0);
+}
+
+#[test]
+fn test_unregister_contract_restricted_to_admin() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let impostor = Address::generate(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    client.register_contract(&admin, &contract, &name);
+    assert_eq!(
+        client.try_unregister_contract(&impostor, &contract),
+        Err(Ok(Error::Unauthorized))
+    );
+}
+
+#[test]
+fn test_unregister_nonexistent_contract_rejected() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract = Address::generate(&env);
+
+    assert_eq!(
+        client.try_unregister_contract(&admin, &contract),
+        Err(Ok(Error::ContractNotRegistered))
+    );
+}
+
+#[test]
+fn test_freeze_propagation_on_pause() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract1 = Address::generate(&env);
+    let contract2 = Address::generate(&env);
+    let name1 = String::from_str(&env, "InvoiceEscrow");
+    let name2 = String::from_str(&env, "PaymentDistributor");
+
+    client.register_contract(&admin, &contract1, &name1);
+    client.register_contract(&admin, &contract2, &name2);
+
+    let results = client.pause_platform(&admin);
+    assert_eq!(results.len(), 2);
+
+    // Both should have attempted propagation
+    let status1 = results.get(0).unwrap();
+    let status2 = results.get(1).unwrap();
+
+    // Since the target contracts don't have set_paused, they will fail
+    // but we verify the structure is correct
+    assert_eq!(status1.contract, contract1);
+    assert_eq!(status2.contract, contract2);
+}
+
+#[test]
+fn test_freeze_propagation_on_resume() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    client.register_contract(&admin, &contract, &name);
+    client.pause_platform(&admin);
+    client.resume_platform(&admin);
+    advance_time(&env, RESUME_TIMELOCK_SECONDS);
+
+    let results = client.resume_platform(&admin);
+    assert_eq!(results.len(), 1);
+
+    let status = results.get(0).unwrap();
+    assert_eq!(status.contract, contract);
+}
+
+#[test]
+fn test_contract_registered_event_emitted() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    client.register_contract(&admin, &contract, &name);
+
+    let (topics, data) = last_event(&env);
+    let name_sym: Symbol = topics.get(0).unwrap().try_into_val(&env).unwrap();
+    assert_eq!(name_sym, Symbol::new(&env, "ContractRegistered"));
+
+    let emitted_name: String = data.try_into_val(&env).unwrap();
+    assert_eq!(emitted_name, name);
+}
+
+#[test]
+fn test_contract_unregistered_event_emitted() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    client.register_contract(&admin, &contract, &name);
+    client.unregister_contract(&admin, &contract);
+
+    let (topics, _data) = last_event(&env);
+    let name_sym: Symbol = topics.get(0).unwrap().try_into_val(&env).unwrap();
+    assert_eq!(name_sym, Symbol::new(&env, "ContractUnregistered"));
+}
+
+#[test]
+fn test_freeze_propagation_requested_event_emitted() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    client.register_contract(&admin, &contract, &name);
+    client.pause_platform(&admin);
+
+    // Find the FreezePropagationRequested event
+    let all = env.events().all();
+    let events = all.events();
+    let mut found = false;
+    for event in events.iter() {
+        let soroban_sdk::xdr::ContractEventBody::V0(v0) = &event.body;
+        let topics = Vec::<Val>::try_from_val(
+            env,
+            &soroban_sdk::xdr::ScVal::Vec(Some(v0.topics.clone().into())),
+        )
+        .unwrap();
+        let topic: Symbol = topics.get(0).unwrap().try_into_val(&env).unwrap();
+        if topic == Symbol::new(&env, "FreezePropagationRequested") {
+            found = true;
+            let data = Val::try_from_val(env, &v0.data).unwrap();
+            let (_timestamp, actor, count): (u64, Address, u32) = data.try_into_val(&env).unwrap();
+            assert_eq!(actor, admin);
+            assert_eq!(count, 1);
+            break;
+        }
+    }
+    assert!(found, "FreezePropagationRequested event not found");
+}
+
+#[test]
+fn test_freeze_propagated_event_emitted() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract = Address::generate(&env);
+    let name = String::from_str(&env, "TestContract");
+
+    client.register_contract(&admin, &contract, &name);
+    client.pause_platform(&admin);
+
+    // Find the FreezePropagated event
+    let all = env.events().all();
+    let events = all.events();
+    let mut found = false;
+    for event in events.iter() {
+        let soroban_sdk::xdr::ContractEventBody::V0(v0) = &event.body;
+        let topics = Vec::<Val>::try_from_val(
+            env,
+            &soroban_sdk::xdr::ScVal::Vec(Some(v0.topics.clone().into())),
+        )
+        .unwrap();
+        let topic: Symbol = topics.get(0).unwrap().try_into_val(&env).unwrap();
+        if topic == Symbol::new(&env, "FreezePropagated") {
+            found = true;
+            let data = Val::try_from_val(env, &v0.data).unwrap();
+            let (success, _error): (bool, Option<String>) = data.try_into_val(&env).unwrap();
+            // The call will fail since target doesn't have set_paused
+            assert!(!success);
+            break;
+        }
+    }
+    assert!(found, "FreezePropagated event not found");
+}
+
+#[test]
+fn test_get_registered_contracts_view() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let contract1 = Address::generate(&env);
+    let contract2 = Address::generate(&env);
+    let name1 = String::from_str(&env, "Contract1");
+    let name2 = String::from_str(&env, "Contract2");
+
+    assert_eq!(client.get_registered_contracts().unwrap().len(), 0);
+
+    client.register_contract(&admin, &contract1, &name1);
+    assert_eq!(client.get_registered_contracts().unwrap().len(), 1);
+
+    client.register_contract(&admin, &contract2, &name2);
+    assert_eq!(client.get_registered_contracts().unwrap().len(), 2);
+
+    let contracts = client.get_registered_contracts().unwrap();
+    assert_eq!(contracts.get(0).unwrap(), contract1);
+    assert_eq!(contracts.get(1).unwrap(), contract2);
 }

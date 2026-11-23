@@ -1,0 +1,4 @@
+# Keep this in sync with deny.toml until the Soroban SDK dependency stack can
+# move to elliptic-curve 0.14 and crypto-bigint >=0.7.6.
+[advisories]
+ignore = ["RUSTSEC-2026-0387"]

@@ -33,12 +33,17 @@ pub fn set_config(env: &Env, config: &Config) {
 /// Check whether the contract has been initialized.
 pub fn is_initialized(env: &Env) -> bool {
     extend_instance(env);
-    env.storage().instance().get(&StorageKey::Initialized).unwrap_or(false)
+    env.storage()
+        .instance()
+        .get(&StorageKey::Initialized)
+        .unwrap_or(false)
 }
 
 /// Mark the contract as initialized.
 pub fn set_initialized(env: &Env) {
-    env.storage().instance().set(&StorageKey::Initialized, &true);
+    env.storage()
+        .instance()
+        .set(&StorageKey::Initialized, &true);
     extend_instance(env);
 }
 
@@ -62,7 +67,11 @@ pub fn set_fee_rate(env: &Env, fee_type: FeeType, rate_bps: u32) {
 /// Load the change history (newest first) for a fee type, if any.
 pub fn get_fee_history(env: &Env, fee_type: FeeType) -> Vec<FeeHistoryEntry> {
     let key = StorageKey::FeeHistory(fee_type);
-    let history = env.storage().persistent().get(&key).unwrap_or(Vec::new(env));
+    let history = env
+        .storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or(Vec::new(env));
     if env.storage().persistent().has(&key) {
         env.storage()
             .persistent()

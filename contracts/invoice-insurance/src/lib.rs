@@ -152,8 +152,8 @@ impl InvoiceInsurance {
                 .unwrap();
 
             let principal_loss = mul_bps(policy.principal, loss_bps as i128)?;
-            let payout = mul_bps(principal_loss, policy.coverage_bps as i128)?
-                .min(policy.coverage_amount);
+            let payout =
+                mul_bps(principal_loss, policy.coverage_bps as i128)?.min(policy.coverage_amount);
             if payout <= 0 {
                 continue;
             }

@@ -8,4 +8,6 @@ pub enum Error {
     NotInitialized = 2,
     Unauthorized = 3,
     IssuerNotFound = 4,
+    NoPendingDowngrade = 5,
+    GracePeriodNotExpired = 6,
 }

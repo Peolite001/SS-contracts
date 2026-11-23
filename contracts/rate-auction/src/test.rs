@@ -84,9 +84,9 @@ fn test_start_auction_rejects_zero_face_value() {
     let (token_addr, _) = create_token(&ctx.env);
     let id = fresh_id(&ctx.env, 1);
 
-    let result = ctx.client.try_start_rate_auction(
-        &issuer, &id, &token_addr, &0, &100, &500, &10, &5,
-    );
+    let result =
+        ctx.client
+            .try_start_rate_auction(&issuer, &id, &token_addr, &0, &100, &500, &10, &5);
     assert!(result.is_err());
 }
 
@@ -98,9 +98,9 @@ fn test_start_auction_rejects_start_rate_exceeds_max() {
     let id = fresh_id(&ctx.env, 2);
 
     // start_rate (600) > max_rate (500)
-    let result = ctx.client.try_start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &600, &500, &10, &5,
-    );
+    let result =
+        ctx.client
+            .try_start_rate_auction(&issuer, &id, &token_addr, &1000, &600, &500, &10, &5);
     assert!(result.is_err());
 }
 
@@ -111,9 +111,9 @@ fn test_start_auction_rejects_zero_step_bps() {
     let (token_addr, _) = create_token(&ctx.env);
     let id = fresh_id(&ctx.env, 3);
 
-    let result = ctx.client.try_start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &0, &5,
-    );
+    let result =
+        ctx.client
+            .try_start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &0, &5);
     assert!(result.is_err());
 }
 
@@ -124,9 +124,9 @@ fn test_start_auction_rejects_zero_step_ledgers() {
     let (token_addr, _) = create_token(&ctx.env);
     let id = fresh_id(&ctx.env, 4);
 
-    let result = ctx.client.try_start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &10, &0,
-    );
+    let result =
+        ctx.client
+            .try_start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &10, &0);
     assert!(result.is_err());
 }
 
@@ -137,12 +137,11 @@ fn test_start_auction_rejects_duplicate_invoice_id() {
     let (token_addr, _) = create_token(&ctx.env);
     let id = fresh_id(&ctx.env, 5);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &10, &5,
-    );
-    let result = ctx.client.try_start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &10, &5,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &10, &5);
+    let result =
+        ctx.client
+            .try_start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &10, &5);
     assert!(result.is_err());
 }
 
@@ -156,9 +155,8 @@ fn test_rate_starts_at_start_rate() {
     let id = fresh_id(&ctx.env, 10);
 
     // start=100 bps, max=500, step=50 bps per 10 ledgers
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
 
     // No ledgers advanced — should be at start rate.
     let rate = ctx.client.current_rate_bps(&id);
@@ -173,9 +171,8 @@ fn test_rate_rises_by_exact_step_per_interval() {
     let id = fresh_id(&ctx.env, 11);
 
     // start=100, max=500, step=50 per 10 ledgers
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
 
     // After 10 ledgers → 1 interval → 100 + 50 = 150
     advance_ledgers(&ctx.env, 10);
@@ -198,9 +195,8 @@ fn test_rate_does_not_exceed_max() {
     let id = fresh_id(&ctx.env, 12);
 
     // start=400, max=500, step=100 per 1 ledger
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &400, &500, &100, &1,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &400, &500, &100, &1);
 
     // After 1 ledger: 400 + 100 = 500 (at max)
     advance_ledgers(&ctx.env, 1);
@@ -223,9 +219,8 @@ fn test_rate_before_first_complete_interval_stays_at_start() {
     let id = fresh_id(&ctx.env, 13);
 
     // step_ledgers = 10; advancing only 9 is not a complete interval
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
 
     advance_ledgers(&ctx.env, 9);
     assert_eq!(ctx.client.current_rate_bps(&id), 100);
@@ -246,9 +241,8 @@ fn test_commitment_locks_rate_at_commitment_time() {
     token.mint(&investor2, &500);
 
     // start=100, max=500, step=50 per 10 ledgers, face=1000
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
 
     // Investor1 commits at ledger 0 → rate = 100
     ctx.client.commit_at_current_rate(&investor1, &id, &300);
@@ -285,9 +279,8 @@ fn test_auction_closes_immediately_when_fully_funded() {
 
     token.mint(&investor, &1000);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
 
     ctx.client.commit_at_current_rate(&investor, &id, &1000);
 
@@ -307,9 +300,8 @@ fn test_auction_caps_commitment_to_remaining_capacity() {
     // face_value = 500, investor tries to commit 800
     token.mint(&investor, &800);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &500, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &500, &100, &500, &50, &10);
 
     ctx.client.commit_at_current_rate(&investor, &id, &800);
 
@@ -335,9 +327,8 @@ fn test_funds_transferred_to_issuer_on_fill() {
     let tc = TokenClient::new(&ctx.env, &token_addr);
     let initial_issuer_bal = tc.balance(&issuer);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
     ctx.client.commit_at_current_rate(&investor, &id, &1000);
 
     let final_issuer_bal = tc.balance(&issuer);
@@ -356,9 +347,8 @@ fn test_commit_after_filled_reverts() {
     token.mint(&investor, &1000);
     token.mint(&latebird, &100);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
     ctx.client.commit_at_current_rate(&investor, &id, &1000);
 
     // Auction is Filled; latebird commit should revert.
@@ -384,9 +374,8 @@ fn test_close_expired_refunds_all_commitments() {
 
     // face=1000 so it won't fill. step=100 per 1 ledger, start=400, max=500
     // → reaches max after 1 ledger.
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &400, &500, &100, &1,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &400, &500, &100, &1);
 
     ctx.client.commit_at_current_rate(&investor1, &id, &300);
     ctx.client.commit_at_current_rate(&investor2, &id, &200);
@@ -415,9 +404,8 @@ fn test_close_expired_before_max_rate_reverts() {
     let id = fresh_id(&ctx.env, 41);
 
     // max rate requires 4 intervals of 10 ledgers each; we advance only 2.
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &100, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &100, &10);
 
     advance_ledgers(&ctx.env, 20); // 2 intervals → rate=300, still below max=500
 
@@ -436,9 +424,8 @@ fn test_new_commit_after_max_rate_unfilled_reverts() {
     token.mint(&investor, &100);
 
     // reach max in 1 ledger
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &400, &500, &100, &1,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &400, &500, &100, &1);
 
     advance_ledgers(&ctx.env, 1); // now at max rate and still unfilled
 
@@ -455,9 +442,8 @@ fn test_cancel_auction_with_no_commitments_succeeds() {
     let (token_addr, _) = create_token(&ctx.env);
     let id = fresh_id(&ctx.env, 50);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
     ctx.client.cancel_auction(&issuer, &id);
 
     let view = ctx.client.get_auction(&id);
@@ -474,9 +460,8 @@ fn test_cancel_after_commitment_reverts() {
 
     token.mint(&investor, &100);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
     ctx.client.commit_at_current_rate(&investor, &id, &100);
 
     let result = ctx.client.try_cancel_auction(&issuer, &id);
@@ -491,9 +476,8 @@ fn test_cancel_by_non_issuer_reverts() {
     let (token_addr, _) = create_token(&ctx.env);
     let id = fresh_id(&ctx.env, 52);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
     let result = ctx.client.try_cancel_auction(&impostor, &id);
     assert!(result.is_err());
 }
@@ -509,18 +493,15 @@ fn test_partial_commitments_then_expire_refunds_all() {
     let id = fresh_id(&ctx.env, 60);
 
     // Three investors commit, total < face_value → auction expires.
-    let investors: std::vec::Vec<Address> = (0..3)
-        .map(|_| Address::generate(&ctx.env))
-        .collect();
+    let investors: std::vec::Vec<Address> = (0..3).map(|_| Address::generate(&ctx.env)).collect();
     for inv in &investors {
         token.mint(inv, &100);
     }
 
     // face=1000; investors commit 300 total → unfilled at max rate.
     // step=200 per 1 ledger, start=100, max=500 → max after 2 ledgers.
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &200, &1,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &200, &1);
 
     for inv in &investors {
         ctx.client.commit_at_current_rate(inv, &id, &100);
@@ -552,16 +533,13 @@ fn test_multiple_investors_fill_auction_incrementally() {
     let id = fresh_id(&ctx.env, 70);
 
     // face=600; three investors each commit 200 → filled on 3rd commit.
-    let investors: std::vec::Vec<Address> = (0..3)
-        .map(|_| Address::generate(&ctx.env))
-        .collect();
+    let investors: std::vec::Vec<Address> = (0..3).map(|_| Address::generate(&ctx.env)).collect();
     for inv in &investors {
         token.mint(inv, &200);
     }
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &600, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &600, &100, &500, &50, &10);
 
     // Commit in separate ledger intervals to verify different locked rates.
     ctx.client.commit_at_current_rate(&investors[0], &id, &200);
@@ -592,9 +570,8 @@ fn test_start_equals_max_rate_is_valid() {
     let (token_addr, _) = create_token(&ctx.env);
     let id = fresh_id(&ctx.env, 80);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &300, &300, &10, &5,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &300, &300, &10, &5);
 
     // Rate should always be 300.
     advance_ledgers(&ctx.env, 100);
@@ -610,9 +587,8 @@ fn test_get_auction_returns_full_state() {
     let (token_addr, _) = create_token(&ctx.env);
     let id = fresh_id(&ctx.env, 90);
 
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &100, &500, &50, &10,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &100, &500, &50, &10);
 
     advance_ledgers(&ctx.env, 10);
 
@@ -637,9 +613,8 @@ fn test_close_expired_with_no_commitments_succeeds() {
     let id = fresh_id(&ctx.env, 91);
 
     // Reach max in 1 ledger.
-    ctx.client.start_rate_auction(
-        &issuer, &id, &token_addr, &1000, &400, &500, &100, &1,
-    );
+    ctx.client
+        .start_rate_auction(&issuer, &id, &token_addr, &1000, &400, &500, &100, &1);
 
     advance_ledgers(&ctx.env, 1);
 

@@ -1,6 +1,6 @@
 //! Storage helpers for the platform pause contract.
 
-use soroban_sdk::{Address, BytesN, Env};
+use soroban_sdk::{Address, BytesN, Env, Vec};
 
 use crate::types::StorageKey;
 
@@ -8,6 +8,9 @@ use crate::types::StorageKey;
 pub const TTL_THRESHOLD: u32 = 120_960;
 /// Minimum TTL extension in ledger units (~60 days at 5s/ledger).
 pub const MIN_TTL_EXTEND: u32 = 1_036_800;
+
+/// Maximum number of contracts that can be registered for freeze propagation.
+pub const MAX_REGISTERED_CONTRACTS: u32 = 50;
 
 pub fn set_admin(env: &Env, admin: &Address) {
     env.storage().instance().set(&StorageKey::Admin, admin);
@@ -73,4 +76,111 @@ pub fn get_invoice_paused(env: &Env, invoice_id: &BytesN<32>) -> bool {
             .extend_ttl(&key, TTL_THRESHOLD, MIN_TTL_EXTEND);
     }
     paused
+}
+
+/// Set the maximum number of contracts that can be registered.
+pub fn set_max_registered_contracts(env: &Env, max: u32) {
+    env.storage()
+        .instance()
+        .set(&StorageKey::MaxRegisteredContracts, &max);
+    env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, MIN_TTL_EXTEND);
+}
+
+/// Check if a contract is registered for freeze propagation.
+pub fn is_contract_registered(env: &Env, contract: &Address) -> bool {
+    let key = StorageKey::RegisteredContract(contract.clone());
+    env.storage().persistent().has(&key)
+}
+
+/// Register a contract for freeze propagation.
+pub fn register_contract(env: &Env, contract: &Address) -> Result<(), ()> {
+    let key = StorageKey::RegisteredContract(contract.clone());
+    if env.storage().persistent().has(&key) {
+        return Err(());
+    }
+
+    let mut contracts: Vec<Address> = env
+        .storage()
+        .instance()
+        .get(&StorageKey::RegisteredContracts)
+        .unwrap_or(Vec::new(env));
+
+    let max_contracts = env
+        .storage()
+        .instance()
+        .get(&StorageKey::MaxRegisteredContracts)
+        .unwrap_or(MAX_REGISTERED_CONTRACTS);
+
+    if contracts.len() >= max_contracts {
+        return Err(());
+    }
+
+    contracts.push_back(contract.clone());
+    env.storage()
+        .instance()
+        .set(&StorageKey::RegisteredContracts, &contracts);
+    env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, MIN_TTL_EXTEND);
+
+    env.storage().persistent().set(&key, &true);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, TTL_THRESHOLD, MIN_TTL_EXTEND);
+
+    Ok(())
+}
+
+/// Unregister a contract from freeze propagation.
+pub fn unregister_contract(env: &Env, contract: &Address) -> Result<(), ()> {
+    let key = StorageKey::RegisteredContract(contract.clone());
+    if !env.storage().persistent().has(&key) {
+        return Err(());
+    }
+
+    let mut contracts: Vec<Address> = env
+        .storage()
+        .instance()
+        .get(&StorageKey::RegisteredContracts)
+        .unwrap_or(Vec::new(env));
+
+    // Remove the contract from the list
+    let mut new_contracts = Vec::new(env);
+    for i in 0..contracts.len() {
+        let c = contracts.get(i).unwrap();
+        if c != *contract {
+            new_contracts.push_back(c);
+        }
+    }
+
+    env.storage()
+        .instance()
+        .set(&StorageKey::RegisteredContracts, &new_contracts);
+    env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, MIN_TTL_EXTEND);
+
+    env.storage().persistent().remove(&key);
+
+    Ok(())
+}
+
+/// Get all registered contracts for freeze propagation.
+pub fn get_registered_contracts(env: &Env) -> Vec<Address> {
+    env.storage()
+        .instance()
+        .get(&StorageKey::RegisteredContracts)
+        .unwrap_or(Vec::new(env))
+}
+
+/// Set the maximum number of contracts that can be registered.
+pub fn set_max_registered_contracts(env: &Env, max: u32) {
+    env.storage()
+        .instance()
+        .set(&StorageKey::MaxRegisteredContracts, &max);
+    env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, MIN_TTL_EXTEND);
 }

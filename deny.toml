@@ -30,6 +30,12 @@ ignore = [
     # new major of the Soroban stack. It is a `macro_rules!` helper with no
     # runtime code in the shipped WASM.
     { id = "RUSTSEC-2024-0436", reason = "unmaintained; transitive build-dep of soroban-env-host, no safe upgrade" },
+    # crypto-bigint 0.5.5 is required by the pinned elliptic-curve 0.13 stack
+    # used by Soroban SDK 27's host/test dependencies. RustSec fixes this in
+    # crypto-bigint >=0.7.6, which is a breaking API line and cannot be
+    # substituted under the current transitive constraints. Revisit on the
+    # next compatible Soroban SDK/elliptic-curve upgrade.
+    { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5.5 is transitively pinned by Soroban SDK 27 host dependencies; fixed release 0.7.6 is not API-compatible with elliptic-curve 0.13" },
 ]
 
 [licenses]

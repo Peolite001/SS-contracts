@@ -1,6 +1,6 @@
 //! Storage helpers for the multi-sig admin contract.
 
-use soroban_sdk::{Address, Env, Symbol};
+use soroban_sdk::{Address, Env, Symbol, U256};
 
 use crate::types::{Config, Proposal, StorageKey};
 
@@ -62,6 +62,22 @@ pub fn get_next_proposal_id(env: &Env) -> u32 {
 pub fn set_next_proposal_id(env: &Env, id: u32) {
     let key = StorageKey::NextProposalId;
     env.storage().persistent().set(&key, &id);
+    bump(env, &key);
+}
+
+/// Load the next expected nonce for a proposer.
+pub fn get_proposer_nonce(env: &Env, proposer: &Address) -> U256 {
+    let key = StorageKey::ProposerNonce(proposer.clone());
+    env.storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or(U256::from_u32(0))
+}
+
+/// Save the next expected nonce for a proposer.
+pub fn set_proposer_nonce(env: &Env, proposer: &Address, nonce: U256) {
+    let key = StorageKey::ProposerNonce(proposer.clone());
+    env.storage().persistent().set(&key, &nonce);
     bump(env, &key);
 }
 

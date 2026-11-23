@@ -431,6 +431,20 @@ pub fn set_currency_token(env: &Env, currency: &Symbol, token: Option<&Address>)
     }
 }
 
+/// Get the configured maximum FX quote age (seconds) for a currency.
+pub fn get_currency_max_age(env: &Env, currency: &Symbol) -> Option<u64> {
+    env.storage()
+        .instance()
+        .get(&StorageKey::CurrencyMaxAge(currency.clone()))
+}
+
+/// Set the maximum FX quote age (seconds) for a currency.
+pub fn set_currency_max_age(env: &Env, currency: &Symbol, max_age_secs: u64) {
+    env.storage()
+        .instance()
+        .set(&StorageKey::CurrencyMaxAge(currency.clone()), &max_age_secs);
+}
+
 /// Get the multi-currency investment records for (invoice_id, investor).
 pub fn get_investment_records(
     env: &Env,

@@ -12,9 +12,7 @@ fn parse_event(env: &Env, event: &soroban_sdk::xdr::ContractEvent) -> (Address, 
     let contract_addr = match &event.contract_id {
         Some(hash) => Address::try_from_val(
             env,
-            &soroban_sdk::xdr::ScVal::Address(soroban_sdk::xdr::ScAddress::Contract(
-                hash.clone(),
-            )),
+            &soroban_sdk::xdr::ScVal::Address(soroban_sdk::xdr::ScAddress::Contract(hash.clone())),
         )
         .unwrap(),
         None => Address::generate(env),
@@ -118,9 +116,7 @@ fn test_queue_action_rejects_zero_eta() {
     let s = Setup::new();
     let params = make_params(&s.env);
     let act_type = Symbol::new(&s.env, "upgrade");
-    let r = s
-        .client
-        .try_queue_action(&s.admin, &act_type, &params, &0);
+    let r = s.client.try_queue_action(&s.admin, &act_type, &params, &0);
     assert!(r.is_err());
 }
 
@@ -132,9 +128,7 @@ fn test_execute_blocked_before_eta() {
     let act_type = Symbol::new(&s.env, "upgrade");
 
     let eta = now + 48 * 3_600;
-    let id = s
-        .client
-        .queue_action(&s.admin, &act_type, &params, &eta);
+    let id = s.client.queue_action(&s.admin, &act_type, &params, &eta);
 
     // Try to execute immediately — should fail.
     let r = s.client.try_execute_action(&id);

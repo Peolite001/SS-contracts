@@ -120,7 +120,9 @@ impl EarnestDeposit {
         if config.deposit_bps > Self::MAX_DEPOSIT_BPS {
             panic!("Deposit bps exceeds maximum allowed rate of 20%");
         }
-        env.storage().instance().set(&EarnestStorageKey::Config, config);
+        env.storage()
+            .instance()
+            .set(&EarnestStorageKey::Config, config);
         Ok(())
     }
 
@@ -201,7 +203,9 @@ impl EarnestDeposit {
         env.storage().persistent().set(&key, &record);
 
         let total_locked = Self::get_total_locked(env) + amount;
-        env.storage().instance().set(&EarnestStorageKey::TotalLocked, &total_locked);
+        env.storage()
+            .instance()
+            .set(&EarnestStorageKey::TotalLocked, &total_locked);
 
         env.events().publish(
             (Symbol::new(env, "earnest"), Symbol::new(env, "locked")),
@@ -243,7 +247,9 @@ impl EarnestDeposit {
 
         let current_locked = Self::get_total_locked(env);
         let new_locked = current_locked.saturating_sub(amount);
-        env.storage().instance().set(&EarnestStorageKey::TotalLocked, &new_locked);
+        env.storage()
+            .instance()
+            .set(&EarnestStorageKey::TotalLocked, &new_locked);
 
         env.events().publish(
             (Symbol::new(env, "earnest"), Symbol::new(env, "returned")),
@@ -282,11 +288,15 @@ impl EarnestDeposit {
 
         let current_locked = Self::get_total_locked(env);
         let new_locked = current_locked.saturating_sub(amount);
-        env.storage().instance().set(&EarnestStorageKey::TotalLocked, &new_locked);
+        env.storage()
+            .instance()
+            .set(&EarnestStorageKey::TotalLocked, &new_locked);
 
         let current_forfeited = Self::get_total_forfeited(env);
         let new_forfeited = current_forfeited + amount;
-        env.storage().instance().set(&EarnestStorageKey::TotalForfeited, &new_forfeited);
+        env.storage()
+            .instance()
+            .set(&EarnestStorageKey::TotalForfeited, &new_forfeited);
 
         env.events().publish(
             (Symbol::new(env, "earnest"), Symbol::new(env, "forfeited")),

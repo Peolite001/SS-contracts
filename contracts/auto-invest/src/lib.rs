@@ -22,7 +22,9 @@ impl AutoInvest {
             return Err(Error::AlreadyInitialized);
         }
         env.storage().instance().set(&StorageKey::Admin, &admin);
-        env.storage().instance().set(&StorageKey::Operator, &operator);
+        env.storage()
+            .instance()
+            .set(&StorageKey::Operator, &operator);
         Ok(())
     }
 

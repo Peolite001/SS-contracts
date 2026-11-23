@@ -3,7 +3,9 @@
 
 use super::*;
 use soroban_sdk::testutils::{Address as _, Events, Ledger};
-use soroban_sdk::{contract, contractimpl, vec, Address, Env, IntoVal, Symbol, TryFromVal, TryIntoVal, Val, Vec};
+use soroban_sdk::{
+    contract, contractimpl, vec, Address, Env, IntoVal, Symbol, TryFromVal, TryIntoVal, Val, Vec,
+};
 
 use crate::types::UpgradeProposal;
 
@@ -12,9 +14,7 @@ fn parse_event(env: &Env, event: &soroban_sdk::xdr::ContractEvent) -> (Address, 
     let contract_addr = match &event.contract_id {
         Some(hash) => Address::try_from_val(
             env,
-            &soroban_sdk::xdr::ScVal::Address(soroban_sdk::xdr::ScAddress::Contract(
-                hash.clone(),
-            )),
+            &soroban_sdk::xdr::ScVal::Address(soroban_sdk::xdr::ScAddress::Contract(hash.clone())),
         )
         .unwrap(),
         None => Address::generate(env),
@@ -131,11 +131,7 @@ fn test_initialize_rejects_bad_threshold() {
     env.mock_all_auths();
     let admin = Address::generate(&env);
     let logic = env.register_contract(None, MockLogic);
-    let signers = vec![
-        &env,
-        Address::generate(&env),
-        Address::generate(&env),
-    ];
+    let signers = vec![&env, Address::generate(&env), Address::generate(&env)];
     let contract_id = env.register_contract(None, UpgradeProxy);
     let client = UpgradeProxyClient::new(&env, &contract_id);
 
@@ -371,11 +367,8 @@ fn test_unfreeze_restores_forward() {
 #[test]
 fn test_forward_with_args() {
     let s = Setup::new();
-    let args: Vec<Val> = soroban_sdk::vec![
-        &s.env,
-        10i128.into_val(&s.env),
-        32i128.into_val(&s.env)
-    ];
+    let args: Vec<Val> =
+        soroban_sdk::vec![&s.env, 10i128.into_val(&s.env), 32i128.into_val(&s.env)];
     let result = s.client.forward(&Symbol::new(&s.env, "add"), &args);
     let n: i128 = result.try_into_val(&s.env).unwrap();
     assert_eq!(n, 42);
@@ -415,11 +408,7 @@ fn test_not_signer_rejected() {
     let admin = Address::generate(&env);
     let logic = env.register_contract(None, MockLogic);
     let logic2 = env.register_contract(None, MockLogic);
-    let signers = vec![
-        &env,
-        Address::generate(&env),
-        Address::generate(&env),
-    ];
+    let signers = vec![&env, Address::generate(&env), Address::generate(&env)];
     let contract_id = env.register_contract(None, UpgradeProxy);
     let client = UpgradeProxyClient::new(&env, &contract_id);
     client.initialize(&admin, &signers, &1, &10, &logic);

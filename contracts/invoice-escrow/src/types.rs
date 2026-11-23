@@ -65,6 +65,29 @@ pub enum StorageKey {
     EscrowOutstanding(soroban_sdk::Symbol),
     CollateralReserve(soroban_sdk::Address),
     RepaymentReserve(soroban_sdk::Address),
+    /// Persistent: allocation strategy per invoice_id.
+    AllocStrat(soroban_sdk::BytesN<32>),
+    /// Persistent: funded allocation per (invoice_id, investor).
+    FundAlloc(soroban_sdk::BytesN<32>, soroban_sdk::Address),
+}
+
+/// Bounded allocation strategy for invoice funding fills.
+#[contracttype]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum AllocationStrategy {
+    Fifo = 0,
+    ProRata = 1,
+}
+
+/// Allocation preview / outcome for a single investor fill request.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AllocationPreview {
+    pub investor: soroban_sdk::Address,
+    pub requested: i128,
+    pub allocated: i128,
+    pub remaining_capacity: i128,
 }
 
 /// One multi-currency investment, normalised to the base currency at the FX

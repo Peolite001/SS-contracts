@@ -78,8 +78,9 @@ fn create_threshold_invoice(
     min: i128,
     max: i128,
 ) {
-    f.client
-        .create_invoice(id, &f.seller, &target, &min, &max, &1000u32, &0i128, &None, &f.token);
+    f.client.create_invoice(
+        id, &f.seller, &target, &min, &max, &1000u32, &0i128, &None, &f.token,
+    );
     // Sanity: thresholds are stored on the invoice.
     let status = f.client.get_funding_status(id);
     assert_eq!(status.min_threshold, min);
@@ -171,8 +172,7 @@ fn test_threshold_reached_event_emitted_exactly_once() {
             let first_topic: Symbol = topics.get(0).unwrap().try_into_val(env).unwrap();
             if first_topic == Symbol::new(env, "ThresholdReached") {
                 let event_invoice: BytesN<32> = topics.get(1).unwrap().try_into_val(env).unwrap();
-                let (min_threshold, total_raised): (i128, i128) =
-                    data.try_into_val(env).unwrap();
+                let (min_threshold, total_raised): (i128, i128) = data.try_into_val(env).unwrap();
                 found.push_back((event_invoice, min_threshold, total_raised));
             }
         }
@@ -261,7 +261,15 @@ fn test_get_funding_status_percent_filled_at_all_levels() {
 
     f.client.invest(&id, &investor, &20_000i128);
     let s = f.client.get_funding_status(&id);
-    assert_eq!((s.raised, s.min_threshold, s.max_threshold, s.percent_filled_bps), (20_000, 40_000, 120_000, 2_500));
+    assert_eq!(
+        (
+            s.raised,
+            s.min_threshold,
+            s.max_threshold,
+            s.percent_filled_bps
+        ),
+        (20_000, 40_000, 120_000, 2_500)
+    );
 
     f.client.invest(&id, &investor, &40_000i128);
     let s = f.client.get_funding_status(&id);
@@ -285,8 +293,15 @@ fn test_legacy_create_invoice_defaults_min_and_max_to_target() {
     let investor = Address::generate(&env);
     mint(&env, &f.token, &investor, 500_000);
 
-    f.client
-        .create_invoice_legacy(&id, &f.seller, &80_000i128, &1000u32, &0i128, &None, &f.token);
+    f.client.create_invoice_legacy(
+        &id,
+        &f.seller,
+        &80_000i128,
+        &1000u32,
+        &0i128,
+        &None,
+        &f.token,
+    );
 
     let status = f.client.get_funding_status(&id);
     assert_eq!(status.min_threshold, 80_000);

@@ -4,9 +4,9 @@
 use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::{Address, BytesN, Env, Symbol};
 
+use crate::earnest_deposit::{EarnestDeposit, EarnestDepositConfig, EarnestError, EarnestStatus};
 use crate::insurance_pool::{InsuranceConfig, InsurancePool};
 use crate::oracle_adapter::{OracleError, OraclePriceAdapter, PriceData};
-use crate::earnest_deposit::{EarnestDeposit, EarnestDepositConfig, EarnestError, EarnestStatus};
 
 // ==============================================================================
 // 1. Issue #479: Insurance Pool Tests
@@ -111,7 +111,8 @@ fn test_oracle_adapter_currency_conversion() {
     let eur = Symbol::new(&env, "EUR");
 
     // 1. Configure EUR oracle with 3600s staleness threshold
-    OraclePriceAdapter::set_currency_oracle(&env, &admin, eur.clone(), oracle.clone(), 3_600).unwrap();
+    OraclePriceAdapter::set_currency_oracle(&env, &admin, eur.clone(), oracle.clone(), 3_600)
+        .unwrap();
 
     // 2. Set price: 1 EUR = 1.08 USD (price = 108_000_000, 8 decimals)
     OraclePriceAdapter::set_price(&env, &admin, eur.clone(), 108_000_000, 8, 1_000_000).unwrap();

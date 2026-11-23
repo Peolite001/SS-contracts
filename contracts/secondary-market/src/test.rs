@@ -524,4 +524,3 @@ fn test_get_active_listings_excludes_expired_and_inactive_listings() {
     assert_eq!(active_after.len(), 1);
     assert_eq!(active_after.get(0).unwrap().listing_id, id1);
 }
-

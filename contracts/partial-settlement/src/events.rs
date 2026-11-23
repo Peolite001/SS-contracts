@@ -8,7 +8,10 @@ pub fn partial_settlement_executed(
     remaining_balance: i128,
     is_settled: bool,
 ) {
-    let topics = (Symbol::new(env, "PartialSettlementExecuted"), invoice_id.clone());
+    let topics = (
+        Symbol::new(env, "PartialSettlementExecuted"),
+        invoice_id.clone(),
+    );
     let timestamp = env.ledger().timestamp();
     env.events().publish(
         topics,

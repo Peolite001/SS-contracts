@@ -10,8 +10,15 @@ pub fn syndicate_created(
     funding_deadline: u64,
 ) {
     let topics = (Symbol::new(env, "SyndicateCreated"), syndicate_id);
-    env.events()
-        .publish(topics, (invoice_id.clone(), lead_investor.clone(), target_amount, funding_deadline));
+    env.events().publish(
+        topics,
+        (
+            invoice_id.clone(),
+            lead_investor.clone(),
+            target_amount,
+            funding_deadline,
+        ),
+    );
 }
 
 /// Emitted when a co-investor joins a syndicate.
@@ -28,12 +35,7 @@ pub fn syndicate_joined(
 }
 
 /// Emitted when the lead investor executes a fully funded syndicate.
-pub fn syndicate_executed(
-    env: &Env,
-    syndicate_id: u32,
-    invoice_id: &Symbol,
-    total_raised: i128,
-) {
+pub fn syndicate_executed(env: &Env, syndicate_id: u32, invoice_id: &Symbol, total_raised: i128) {
     let topics = (Symbol::new(env, "SyndicateExecuted"), syndicate_id);
     env.events()
         .publish(topics, (invoice_id.clone(), total_raised));

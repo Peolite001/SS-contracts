@@ -4,7 +4,7 @@
 //! Every event carries the proposal id and the acting address so indexers can
 //! reconstruct the full approval trail.
 
-use soroban_sdk::{Address, Env, Symbol};
+use soroban_sdk::{Address, Env, Symbol, U256};
 
 use crate::types::ActionType;
 
@@ -45,5 +45,13 @@ pub fn signers_updated(env: &Env, proposal_id: u32, signer_count: u32, threshold
     env.events().publish(
         (Symbol::new(env, "signers_updated"),),
         (proposal_id, signer_count, threshold),
+    );
+}
+
+/// Emitted when a proposal nonce is consumed (proposal created).
+pub fn nonce_consumed(env: &Env, proposer: &Address, nonce: U256) {
+    env.events().publish(
+        (Symbol::new(env, "nonce_consumed"),),
+        (proposer.clone(), nonce),
     );
 }

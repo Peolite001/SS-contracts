@@ -51,4 +51,8 @@ pub enum Error {
     InvalidRefundWeight = 27,
     /// Nothing left in the distributor to refund. Issue #482.
     NothingToRefund = 28,
+    /// Recipient payout was already completed.
+    AlreadyDistributed = 29,
+    /// Payout receipt does not exist.
+    PayoutNotFound = 30,
 }

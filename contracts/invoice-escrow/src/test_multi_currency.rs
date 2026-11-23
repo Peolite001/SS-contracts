@@ -106,7 +106,10 @@ fn invest_normalises_amount_with_oracle_rate_and_stores_record() {
         .client
         .invest_with_currency(&f.invoice_id, &investor, &100_000, &eurc);
     assert_eq!(base, 108_000);
-    assert_eq!(f.client.get_investor_position(&f.invoice_id, &investor), 108_000);
+    assert_eq!(
+        f.client.get_investor_position(&f.invoice_id, &investor),
+        108_000
+    );
     assert_eq!(f.client.get_invoice(&f.invoice_id).total_raised, 108_000);
 
     // The investor paid in EURC, which the escrow now holds.
@@ -220,11 +223,79 @@ fn setters_are_admin_only() {
     let eurc = Symbol::new(&f.env, "EURC");
 
     assert_eq!(
-        f.client.try_set_supported_currency(&impostor, &eurc, &f.eurc),
+        f.client
+            .try_set_supported_currency(&impostor, &eurc, &f.eurc),
         Err(Ok(Error::Unauthorized))
     );
     assert_eq!(
         f.client.try_set_fx_oracle(&impostor, &f.eurc),
         Err(Ok(Error::Unauthorized))
+    );
+}
+
+// ── #823: per-currency quote staleness ───────────────────────────────────────
+
+#[test]
+fn each_currency_uses_its_own_max_age_at_the_exact_boundary() {
+    let f = setup();
+    let investor = Address::generate(&f.env);
+    let eurc = Symbol::new(&f.env, "EURC");
+    let ngnc = Symbol::new(&f.env, "NGNC");
+    fund(&f, &f.eurc, &investor, 200_000);
+    fund(&f, &f.ngnc, &investor, 100_000_000);
+    f.client.set_currency_max_age(&f.admin, &eurc, &60);
+    f.client.set_currency_max_age(&f.admin, &ngnc, &600);
+
+    // Exactly at EURC's max age: still fresh and investable.
+    f.env.ledger().set_timestamp(NOW + 60);
+    assert_eq!(f.client.get_currency_quote_freshness(&eurc), (60, 60, true));
+    f.client
+        .invest_with_currency(&f.invoice_id, &investor, &100_000, &eurc);
+
+    // One second later EURC is stale; the failed call moves no tokens.
+    f.env.ledger().set_timestamp(NOW + 61);
+    assert_eq!(
+        f.client.get_currency_quote_freshness(&eurc),
+        (61, 60, false)
+    );
+    let res = f
+        .client
+        .try_invest_with_currency(&f.invoice_id, &investor, &100_000, &eurc);
+    assert_eq!(res, Err(Ok(Error::StalePrice)));
+    assert_eq!(
+        TokenClient::new(&f.env, &f.eurc).balance(&investor),
+        100_000
+    );
+    assert_eq!(
+        f.client.get_investor_position(&f.invoice_id, &investor),
+        108_000
+    );
+
+    // NGNC has its own, longer window and is still accepted.
+    assert_eq!(
+        f.client.get_currency_quote_freshness(&ngnc),
+        (61, 600, true)
+    );
+    f.client
+        .invest_with_currency(&f.invoice_id, &investor, &100_000_000, &ngnc);
+}
+
+#[test]
+fn set_currency_max_age_requires_admin_and_non_zero() {
+    let f = setup();
+    let eurc = Symbol::new(&f.env, "EURC");
+    assert_eq!(
+        f.client
+            .try_set_currency_max_age(&Address::generate(&f.env), &eurc, &60),
+        Err(Ok(Error::Unauthorized))
+    );
+    assert_eq!(
+        f.client.try_set_currency_max_age(&f.admin, &eurc, &0),
+        Err(Ok(Error::InvalidAmount))
+    );
+    // Unconfigured currencies fall back to the adapter default.
+    assert_eq!(
+        f.client.get_currency_quote_freshness(&eurc),
+        (0, OraclePriceAdapter::DEFAULT_MAX_STALENESS_SECS, true)
     );
 }

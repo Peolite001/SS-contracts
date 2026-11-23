@@ -94,7 +94,9 @@ impl OraclePriceAdapter {
 
     /// Sets the admin for the oracle adapter.
     pub fn init_admin(env: &Env, admin: &Address) {
-        env.storage().instance().set(&OracleStorageKey::Admin, admin);
+        env.storage()
+            .instance()
+            .set(&OracleStorageKey::Admin, admin);
     }
 
     /// Retrieves the admin address.
@@ -103,14 +105,20 @@ impl OraclePriceAdapter {
     }
 
     /// Sets the base currency symbol (e.g. "USD").
-    pub fn set_base_currency(env: &Env, admin: &Address, base_currency: &Symbol) -> Result<(), OracleError> {
+    pub fn set_base_currency(
+        env: &Env,
+        admin: &Address,
+        base_currency: &Symbol,
+    ) -> Result<(), OracleError> {
         admin.require_auth();
         if let Some(current_admin) = Self::get_admin(env) {
             if current_admin != *admin {
                 return Err(OracleError::Unauthorized);
             }
         }
-        env.storage().instance().set(&OracleStorageKey::BaseCurrency, base_currency);
+        env.storage()
+            .instance()
+            .set(&OracleStorageKey::BaseCurrency, base_currency);
         Ok(())
     }
 
@@ -150,7 +158,9 @@ impl OraclePriceAdapter {
             is_active: true,
         };
 
-        env.storage().persistent().set(&OracleStorageKey::CurrencyConfig(currency.clone()), &config);
+        env.storage()
+            .persistent()
+            .set(&OracleStorageKey::CurrencyConfig(currency.clone()), &config);
 
         env.events().publish(
             (Symbol::new(env, "oracle"), Symbol::new(env, "configured")),
@@ -191,10 +201,16 @@ impl OraclePriceAdapter {
             timestamp,
         };
 
-        env.storage().persistent().set(&OracleStorageKey::CachedPrice(currency.clone()), &price_data);
+        env.storage().persistent().set(
+            &OracleStorageKey::CachedPrice(currency.clone()),
+            &price_data,
+        );
 
         env.events().publish(
-            (Symbol::new(env, "oracle"), Symbol::new(env, "price_updated")),
+            (
+                Symbol::new(env, "oracle"),
+                Symbol::new(env, "price_updated"),
+            ),
             OraclePriceUpdatedEvent {
                 currency,
                 price,

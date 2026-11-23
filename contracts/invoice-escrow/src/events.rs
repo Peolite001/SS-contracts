@@ -262,7 +262,10 @@ pub fn funding_thresholds_set(
     max_threshold: i128,
 ) {
     env.events().publish(
-        (Symbol::new(env, "funding_thresholds_set"), invoice_id.clone()),
+        (
+            Symbol::new(env, "funding_thresholds_set"),
+            invoice_id.clone(),
+        ),
         (min_threshold, max_threshold),
     );
 }
@@ -492,5 +495,17 @@ pub fn currency_invested(
     env.events().publish(
         (Symbol::new(env, "currency_invested"), invoice_id.clone()),
         (investor.clone(), currency.clone(), amount, base_amount),
+    );
+}
+
+pub fn allocation_applied(
+    env: &Env,
+    invoice_id: &BytesN<32>,
+    strategy: crate::types::AllocationStrategy,
+    total_allocated: i128,
+) {
+    env.events().publish(
+        (Symbol::new(env, "allocation_applied"), invoice_id.clone()),
+        (strategy as u32, total_allocated),
     );
 }

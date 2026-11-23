@@ -1392,7 +1392,8 @@ fn test_fund_escrow_not_found() {
     escrow_client.initialize(&admin, &300);
 
     // Try to fund non-existent escrow
-    let result = escrow_client.try_fund_escrow_legacy(&Symbol::new(&env, "NONEXISTENT"), &buyer, &1000);
+    let result =
+        escrow_client.try_fund_escrow_legacy(&Symbol::new(&env, "NONEXISTENT"), &buyer, &1000);
     assert_eq!(result, Err(Ok(Error::EscrowNotFound)));
 }
 
@@ -9280,9 +9281,15 @@ fn test_settlement_proposal_requires_distinct_second_admin_and_clears_on_executi
         client.try_approve_settlement(&admin, &invoice_id),
         Err(Ok(Error::SameAdminApproval))
     );
-    assert_eq!(client.get_invoice_record(&invoice_id).status, EscrowStatus::Funded);
+    assert_eq!(
+        client.get_invoice_record(&invoice_id).status,
+        EscrowStatus::Funded
+    );
     client.approve_settlement(&second_admin, &invoice_id);
-    assert_eq!(client.get_invoice_record(&invoice_id).status, EscrowStatus::Settled);
+    assert_eq!(
+        client.get_invoice_record(&invoice_id).status,
+        EscrowStatus::Settled
+    );
     assert_eq!(
         client.try_approve_settlement(&second_admin, &invoice_id),
         Err(Ok(Error::SettlementNotProposed))
@@ -10446,10 +10453,7 @@ fn test_storage_key_uniqueness() {
         for j in 0..serialized.len() {
             let existing = serialized.get_unchecked(j);
             if xdr == existing {
-                panic!(
-                    "Storage key at index {} collides with index {}",
-                    i, j
-                );
+                panic!("Storage key at index {} collides with index {}", i, j);
             }
         }
         serialized.push_back(xdr);
@@ -10576,7 +10580,9 @@ fn issue458_admin_config_setters_reject_missing_auth() {
     assert!(client
         .try_set_buyer_whitelisted(&admin, &buyer, &true)
         .is_err());
-    assert!(client.try_set_accreditation_callback(&admin, &None).is_err());
+    assert!(client
+        .try_set_accreditation_callback(&admin, &None)
+        .is_err());
     assert!(client.try_set_penalty_interest_bps(&admin, &50u32).is_err());
 }
 
@@ -10684,9 +10690,7 @@ fn issue458_emergency_release_rejects_unconfigured_and_duplicate() {
     };
     client.set_emergency_config(&_admin, &config);
     env.set_auths(&[]);
-    assert!(client
-        .try_emergency_release(&e1, &invoice_id)
-        .is_err());
+    assert!(client.try_emergency_release(&e1, &invoice_id).is_err());
 }
 
 #[test]
@@ -10725,7 +10729,14 @@ fn issue458_invoice_registry_admin_fns_reject_non_admin() {
     let inv_id = BytesN::from_array(&env, &[91u8; 32]);
 
     assert_eq!(
-        client.try_register_invoice(&inv_id, &100_000i128, &80_000i128, &500u32, &1_000u32, &BytesN::from_array(&env, &[7u8; 32])),
+        client.try_register_invoice(
+            &inv_id,
+            &100_000i128,
+            &80_000i128,
+            &500u32,
+            &1_000u32,
+            &BytesN::from_array(&env, &[7u8; 32])
+        ),
         Err(Ok(Error::Unauthorized))
     );
     let missing = BytesN::from_array(&env, &[92u8; 32]);
@@ -10754,11 +10765,25 @@ fn issue458_invoice_registry_admin_fns_reject_missing_auth() {
     env.mock_all_auths();
     let (_id, client, _seller, _admin, _invoice_id) = setup_escrow_created(&env);
     let inv_id = BytesN::from_array(&env, &[93u8; 32]);
-    client.register_invoice(&inv_id, &100_000i128, &80_000i128, &500u32, &1_000u32, &BytesN::from_array(&env, &[7u8; 32]));
+    client.register_invoice(
+        &inv_id,
+        &100_000i128,
+        &80_000i128,
+        &500u32,
+        &1_000u32,
+        &BytesN::from_array(&env, &[7u8; 32]),
+    );
 
     env.set_auths(&[]);
     assert!(client
-        .try_register_invoice(&inv_id, &100_000i128, &80_000i128, &500u32, &1_000u32, &BytesN::from_array(&env, &[7u8; 32]))
+        .try_register_invoice(
+            &inv_id,
+            &100_000i128,
+            &80_000i128,
+            &500u32,
+            &1_000u32,
+            &BytesN::from_array(&env, &[7u8; 32])
+        )
         .is_err());
     assert!(client.try_cancel_invoice(&inv_id).is_err());
     assert!(client.try_extend_deadline(&inv_id, &2_000u32).is_err());
@@ -10857,7 +10882,14 @@ fn issue455_unique_wallet_counting_under_interleaved_commitments() {
     let inv_id = BytesN::from_array(&env, &[71u8; 32]);
 
     client.set_max_investors(&3u32);
-    client.register_invoice(&inv_id, &120_000i128, &90_000i128, &500u32, &1_000u32, &BytesN::from_array(&env, &[7u8; 32]));
+    client.register_invoice(
+        &inv_id,
+        &120_000i128,
+        &90_000i128,
+        &500u32,
+        &1_000u32,
+        &BytesN::from_array(&env, &[7u8; 32]),
+    );
 
     // Interleave commitments: A, B, A, B, A, B ... same totals as sequential.
     let w0 = wallets.get(0).unwrap();
@@ -10872,14 +10904,8 @@ fn issue455_unique_wallet_counting_under_interleaved_commitments() {
     // Two wallets, six commitments: unique count stays 2, total raised 60k.
     assert_eq!(client.get_invoice_investor_count(&inv_id), 2);
     assert_eq!(client.get_invoice_record(&inv_id).total_raised, 60_000i128);
-    assert_eq!(
-        client.get_investor_position(&inv_id, &w0),
-        30_000i128
-    );
-    assert_eq!(
-        client.get_investor_position(&inv_id, &w1),
-        30_000i128
-    );
+    assert_eq!(client.get_investor_position(&inv_id, &w0), 30_000i128);
+    assert_eq!(client.get_investor_position(&inv_id, &w1), 30_000i128);
     let _ = admin;
 }
 
@@ -10894,7 +10920,14 @@ fn issue455_cap_boundary_last_unique_wallet_exactly_saturates() {
     let w3 = Address::generate(&env);
 
     client.set_max_investors(&2u32);
-    client.register_invoice(&inv_id, &120_000i128, &90_000i128, &500u32, &1_000u32, &BytesN::from_array(&env, &[7u8; 32]));
+    client.register_invoice(
+        &inv_id,
+        &120_000i128,
+        &90_000i128,
+        &500u32,
+        &1_000u32,
+        &BytesN::from_array(&env, &[7u8; 32]),
+    );
 
     client.invest(&inv_id, &w1, &10_000i128);
     client.invest(&inv_id, &w2, &10_000i128);
@@ -10921,7 +10954,14 @@ fn issue455_wallet_at_cap_may_still_top_up() {
     let w3 = Address::generate(&env);
 
     client.set_max_investors(&2u32);
-    client.register_invoice(&inv_id, &120_000i128, &90_000i128, &500u32, &1_000u32, &BytesN::from_array(&env, &[7u8; 32]));
+    client.register_invoice(
+        &inv_id,
+        &120_000i128,
+        &90_000i128,
+        &500u32,
+        &1_000u32,
+        &BytesN::from_array(&env, &[7u8; 32]),
+    );
 
     client.invest(&inv_id, &w1, &10_000i128);
     client.invest(&inv_id, &w2, &10_000i128);
@@ -10929,10 +10969,7 @@ fn issue455_wallet_at_cap_may_still_top_up() {
     client.invest(&inv_id, &w1, &40_000i128);
 
     assert_eq!(client.get_invoice_investor_count(&inv_id), 2);
-    assert_eq!(
-        client.get_investor_position(&inv_id, &w1),
-        50_000i128
-    );
+    assert_eq!(client.get_investor_position(&inv_id, &w1), 50_000i128);
     // A third wallet is still refused.
     assert_eq!(
         client.try_invest(&inv_id, &w3, &10_000i128),
@@ -10952,7 +10989,14 @@ fn issue455_fuzz_cap_transitions_1_to_5() {
     for cap in 1u32..=5 {
         client.set_max_investors(&cap);
         let fresh = BytesN::from_array(&env, &[(70u8 + cap as u8); 32]);
-        client.register_invoice(&fresh, &200_000i128, &150_000i128, &500u32, &1_000u32, &BytesN::from_array(&env, &[7u8; 32]));
+        client.register_invoice(
+            &fresh,
+            &200_000i128,
+            &150_000i128,
+            &500u32,
+            &1_000u32,
+            &BytesN::from_array(&env, &[7u8; 32]),
+        );
 
         for i in 0..cap {
             let w = Address::generate(&env);
@@ -10984,7 +11028,14 @@ fn issue455_cap_raise_admits_only_the_promised_slots() {
     ];
 
     client.set_max_investors(&1u32);
-    client.register_invoice(&inv_id, &120_000i128, &90_000i128, &500u32, &1_000u32, &BytesN::from_array(&env, &[7u8; 32]));
+    client.register_invoice(
+        &inv_id,
+        &120_000i128,
+        &90_000i128,
+        &500u32,
+        &1_000u32,
+        &BytesN::from_array(&env, &[7u8; 32]),
+    );
 
     client.invest(&inv_id, &wallets.get(0).unwrap(), &10_000i128);
     assert_eq!(
@@ -11018,7 +11069,14 @@ fn issue455_fill_to_target_under_cap_pressure() {
     // 3 wallets, cap 2, target 150k: the guard must hold while commitments
     // interleave until the target is met by the two admitted wallets.
     client.set_max_investors(&2u32);
-    client.register_invoice(&inv_id, &200_000i128, &150_000i128, &500u32, &1_000u32, &BytesN::from_array(&env, &[7u8; 32]));
+    client.register_invoice(
+        &inv_id,
+        &200_000i128,
+        &150_000i128,
+        &500u32,
+        &1_000u32,
+        &BytesN::from_array(&env, &[7u8; 32]),
+    );
 
     let raised = issue455_fill_round_robin(&client, &inv_id, &wallets, 10_000i128, 150_000i128);
     assert_eq!(raised, 150_000i128);
@@ -11028,4 +11086,155 @@ fn issue455_fill_to_target_under_cap_pressure() {
         client.get_invoice_record(&inv_id).status,
         EscrowStatus::Funded
     );
+}
+#[test]
+fn deprecation_inventory_covers_all_legacy_entrypoints() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let escrow_id = env.register_contract(None, InvoiceEscrow);
+    let client = InvoiceEscrowClient::new(&env, &escrow_id);
+
+    let admin = Address::generate(&env);
+    client.initialize(&admin, &0);
+
+    // Test that deprecation records are returned
+    let records = client.get_deprecation_records();
+    assert!(
+        records.len() >= 4,
+        "Expected at least 4 deprecation records"
+    );
+
+    // Verify each deprecated method is documented
+    let method_names: soroban_sdk::Vec<Symbol> = records.iter().map(|r| r.method).collect();
+    assert!(method_names
+        .iter()
+        .any(|m| m == Symbol::new(&env, "create_escrow_legacy")));
+    assert!(method_names
+        .iter()
+        .any(|m| m == Symbol::new(&env, "fund_escrow_legacy")));
+    assert!(method_names
+        .iter()
+        .any(|m| m == Symbol::new(&env, "create_escrow_with_tokens")));
+    assert!(method_names
+        .iter()
+        .any(|m| m == Symbol::new(&env, "fund_escrow_with_token")));
+
+    // Verify each record has replacement guidance
+    for record in records.iter() {
+        assert!(
+            !record.replacement.is_empty(&env),
+            "Replacement must be specified"
+        );
+        assert!(
+            !record.guidance.is_empty(&env),
+            "Guidance must be specified"
+        );
+        assert!(
+            record.min_warning_days >= 90,
+            "Minimum 90-day warning period"
+        );
+    }
+}
+
+#[test]
+fn deprecation_legacy_entrypoints_still_functional() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let escrow_id = env.register_contract(None, InvoiceEscrow);
+    let client = InvoiceEscrowClient::new(&env, &escrow_id);
+
+    let admin = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let debtor = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let payer = Address::generate(&env);
+
+    let invoice_id = Symbol::new(&env, "INV_DEPR");
+    let payment_token_admin = Address::generate(&env);
+    let payment_token_id = env.register_stellar_asset_contract_v2(payment_token_admin.clone());
+    let payment_token = payment_token_id.address();
+    let payment_asset = soroban_sdk::token::StellarAssetClient::new(&env, &payment_token_id);
+    let inv_token_id = env.register_contract(None, MockInvoiceToken);
+
+    // Mint tokens for testing
+    payment_asset.mint(&buyer, &1000);
+    payment_asset.mint(&payer, &1000);
+
+    // Test create_escrow_legacy still works
+    client.create_escrow_legacy(
+        &invoice_id,
+        &seller,
+        &debtor,
+        &1000,
+        &1000,
+        &1_000_000,
+        &payment_token,
+        &inv_token_id,
+        &BytesN::from_array(&env, &[0; 32]),
+        &None,
+        &None,
+    );
+    assert_eq!(
+        client.get_escrow_status(&invoice_id),
+        Ok(EscrowStatus::Created)
+    );
+
+    // Test fund_escrow_legacy still works
+    client.fund_escrow_legacy(&invoice_id, &buyer, &1000);
+    assert_eq!(
+        client.get_escrow_status(&invoice_id),
+        Ok(EscrowStatus::Funded)
+    );
+
+    // Test create_escrow_with_tokens still works
+    let invoice_id2 = Symbol::new(&env, "INV_DEPR2");
+    client.create_escrow_with_tokens(
+        &invoice_id2,
+        &seller,
+        &debtor,
+        &1000,
+        &1000,
+        &1_000_000,
+        &payment_token,
+        &inv_token_id,
+        &BytesN::from_array(&env, &[1; 32]),
+        &None,
+        &None,
+        &soroban_sdk::vec![&env, payment_token.clone()],
+    );
+    assert_eq!(
+        client.get_escrow_status(&invoice_id2),
+        Ok(EscrowStatus::Created)
+    );
+
+    // Test fund_escrow_with_token still works
+    client.fund_escrow_with_token(&invoice_id2, &buyer, &1000, &payment_token);
+    assert_eq!(
+        client.get_escrow_status(&invoice_id2),
+        Ok(EscrowStatus::Funded)
+    );
+}
+
+#[test]
+fn is_method_deprecated_returns_true_for_legacy() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let escrow_id = env.register_contract(None, InvoiceEscrow);
+    let client = InvoiceEscrowClient::new(&env, &escrow_id);
+    let admin = Address::generate(&env);
+    client.initialize(&admin, &0);
+
+    assert!(client.is_method_deprecated(&Symbol::new(&env, "create_escrow_legacy")));
+    assert!(client.is_method_deprecated(&Symbol::new(&env, "fund_escrow_legacy")));
+    assert!(client.is_method_deprecated(&Symbol::new(&env, "create_escrow_with_tokens")));
+    assert!(client.is_method_deprecated(&Symbol::new(&env, "fund_escrow_with_token")));
+
+    // Current methods should not be deprecated
+    assert!(!client.is_method_deprecated(&Symbol::new(&env, "create_escrow")));
+    assert!(!client.is_method_deprecated(&Symbol::new(&env, "fund_escrow")));
+    assert!(!client.is_method_deprecated(&Symbol::new(&env, "record_payment")));
+    assert!(!client.is_method_deprecated(&Symbol::new(&env, "refund_escrow")));
 }

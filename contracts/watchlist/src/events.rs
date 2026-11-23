@@ -22,6 +22,9 @@ pub fn invoice_added_to_watchlist(env: &Env, wallet: &Address, invoice_id: &Byte
 }
 
 pub fn invoice_removed_from_watchlist(env: &Env, wallet: &Address, invoice_id: &BytesN<32>) {
-    let topics = (Symbol::new(env, "InvoiceRemovedFromWatchlist"), wallet.clone());
+    let topics = (
+        Symbol::new(env, "InvoiceRemovedFromWatchlist"),
+        wallet.clone(),
+    );
     env.events().publish(topics, invoice_id.clone());
 }

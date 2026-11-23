@@ -1,11 +1,6 @@
 use soroban_sdk::{Address, BytesN, Env, Symbol};
 
-pub fn auto_invest_executed(
-    env: &Env,
-    wallet: &Address,
-    invoice_id: &BytesN<32>,
-    amount: i128,
-) {
+pub fn auto_invest_executed(env: &Env, wallet: &Address, invoice_id: &BytesN<32>, amount: i128) {
     let topics = (Symbol::new(env, "AutoInvestExecuted"), wallet.clone());
     let timestamp = env.ledger().timestamp();
     env.events()

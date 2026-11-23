@@ -277,3 +277,28 @@ fn test_funds_allocated_event_emitted() {
     assert_eq!(amount, 250);
     assert_eq!(purpose, String::from_str(&env, "operations"));
 }
+
+#[test]
+fn test_source_allowlist_and_cap_enforcement() {
+    let env = Env::default();
+    let (admin, client) = setup(&env);
+    let approved = Address::generate(&env);
+    let unapproved = Address::generate(&env);
+
+    client.set_source_allowlist_enforced(&admin, &true);
+    assert_eq!(
+        client.try_receive_fee(&unapproved, &100),
+        Err(Ok(Error::SourceNotApproved))
+    );
+
+    client.set_approved_source(&admin, &approved, &true, &Some(500));
+    client.receive_fee(&approved, &300);
+    assert_eq!(client.get_source_totals(&approved, &0), (300, 300));
+
+    assert_eq!(
+        client.try_receive_fee(&approved, &201),
+        Err(Ok(Error::SourceCapExceeded))
+    );
+    client.receive_fee(&approved, &200);
+    assert_eq!(client.get_source_totals(&approved, &0), (500, 500));
+}

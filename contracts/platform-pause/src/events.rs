@@ -1,7 +1,7 @@
 #![allow(deprecated)]
 //! Events emitted by the platform pause contract.
 
-use soroban_sdk::{Address, BytesN, Env, Symbol};
+use soroban_sdk::{Address, BytesN, Env, String, Symbol};
 
 /// Emitted when the contract is initialized.
 pub fn initialized(env: &Env, admin: &Address) {
@@ -37,4 +37,33 @@ pub fn platform_resumed(env: &Env, actor: &Address) {
 pub fn invoice_pause_set(env: &Env, invoice_id: &BytesN<32>, paused: bool) {
     let topics = (Symbol::new(env, "InvoicePauseSet"), invoice_id.clone());
     env.events().publish(topics, paused);
+}
+
+/// Emitted when a contract is registered for freeze propagation.
+/// Topics: (ContractRegistered, contract_address); Data: (contract_name).
+pub fn contract_registered(env: &Env, contract: &Address, name: &String) {
+    let topics = (Symbol::new(env, "ContractRegistered"), contract.clone());
+    env.events().publish(topics, name.clone());
+}
+
+/// Emitted when a contract is unregistered from freeze propagation.
+/// Topics: (ContractUnregistered, contract_address).
+pub fn contract_unregistered(env: &Env, contract: &Address) {
+    let topics = (Symbol::new(env, "ContractUnregistered"), contract.clone());
+    env.events().publish(topics, ());
+}
+
+/// Emitted when freeze is requested to be propagated to all registered contracts.
+/// Topics: (FreezePropagationRequested,); Data: (timestamp, actor, contract_count).
+pub fn freeze_propagation_requested(env: &Env, actor: &Address, count: u32) {
+    let topics = (Symbol::new(env, "FreezePropagationRequested"),);
+    env.events()
+        .publish(topics, (env.ledger().timestamp(), actor.clone(), count));
+}
+
+/// Emitted when freeze propagation result for a contract is recorded.
+/// Topics: (FreezePropagated, contract_address); Data: (success, error).
+pub fn freeze_propagated(env: &Env, contract: &Address, success: bool, error: Option<String>) {
+    let topics = (Symbol::new(env, "FreezePropagated"), contract.clone());
+    env.events().publish(topics, (success, error));
 }

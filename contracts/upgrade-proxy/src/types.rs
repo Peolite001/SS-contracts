@@ -12,6 +12,25 @@ pub enum StorageKey {
     Logic,
     /// Pending upgrade proposal (only one at a time).
     Proposal,
+    /// Upgrade dependency compatibility manifest.
+    Dependencies,
+}
+
+/// Dependency manifest item for checking compatibility before upgrades.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DependencyManifest {
+    pub contract_id: Address,
+    pub required_interface_version: u32,
+}
+
+/// Status of a dependency check.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DependencyStatus {
+    pub contract_id: Address,
+    pub required_version: u32,
+    pub compatible: bool,
 }
 
 /// Global configuration for the proxy.

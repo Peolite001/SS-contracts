@@ -98,10 +98,7 @@ impl OvercollateralReward {
 
     /// Returns whether the issuer is currently over-collateralised, their
     /// excess bps, and how many days the current streak has lasted.
-    pub fn check_overcollateral(
-        env: Env,
-        issuer: Address,
-    ) -> Result<(bool, u32, u32), Error> {
+    pub fn check_overcollateral(env: Env, issuer: Address) -> Result<(bool, u32, u32), Error> {
         let record: CollateralRecord = env
             .storage()
             .persistent()
@@ -138,8 +135,7 @@ impl OvercollateralReward {
         }
 
         let now = env.ledger().timestamp();
-        let days_elapsed =
-            (now.saturating_sub(record.streak_start)) / SECONDS_PER_DAY;
+        let days_elapsed = (now.saturating_sub(record.streak_start)) / SECONDS_PER_DAY;
 
         if days_elapsed < REQUIRED_STREAK_DAYS {
             return Err(Error::StreakTooShort);
@@ -180,7 +176,11 @@ impl OvercollateralReward {
         Ok(RewardStatus {
             streak_days,
             discount_pending: record.discount_pending,
-            discount_bps: if record.discount_pending { DISCOUNT_BPS } else { 0 },
+            discount_bps: if record.discount_pending {
+                DISCOUNT_BPS
+            } else {
+                0
+            },
         })
     }
 

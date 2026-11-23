@@ -152,11 +152,7 @@ impl FraudRegistry {
     }
 
     /// Admin-only: resolve a report as confirmed or dismissed, without notes.
-    pub fn resolve_report(
-        env: Env,
-        report_id: u32,
-        outcome: ReportOutcome,
-    ) -> Result<(), Error> {
+    pub fn resolve_report(env: Env, report_id: u32, outcome: ReportOutcome) -> Result<(), Error> {
         let notes = String::from_str(&env, "");
         Self::review_report(env, report_id, outcome, notes)
     }

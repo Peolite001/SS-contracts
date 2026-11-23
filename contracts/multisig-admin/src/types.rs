@@ -1,6 +1,6 @@
 //! Data types for the multi-sig admin contract.
 
-use soroban_sdk::{contracttype, Address, Symbol, Vec};
+use soroban_sdk::{contracttype, Address, Symbol, Vec, U256};
 
 /// Storage key enum for instance and persistent storage.
 #[contracttype]
@@ -16,6 +16,8 @@ pub enum StorageKey {
     Whitelist(Address),
     /// Persistent: settlement-trigger flag by invoice id.
     SettlementTriggered(Symbol),
+    /// Persistent: next expected nonce for a proposer.
+    ProposerNonce(Address),
 }
 
 /// The privileged platform operations gated behind the multi-sig flow.
@@ -77,6 +79,8 @@ pub struct Proposal {
     pub id: u32,
     /// Signer that created the proposal. Counts as the first approval.
     pub proposer: Address,
+    /// Monotonic nonce for replay protection per proposer.
+    pub nonce: U256,
     /// The action to perform when executed.
     pub action_type: ActionType,
     /// Parameters for the action.

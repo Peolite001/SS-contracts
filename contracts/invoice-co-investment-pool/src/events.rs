@@ -11,18 +11,14 @@ pub fn pool_created(
     min_contribution: i128,
 ) {
     let topics = (Symbol::new(env, "PoolCreated"), pool_id);
-    env.events()
-        .publish(topics, (invoice_id.clone(), target_amount, min_contribution));
+    env.events().publish(
+        topics,
+        (invoice_id.clone(), target_amount, min_contribution),
+    );
 }
 
 /// Emitted when an investor contributes to a pool.
-pub fn pool_joined(
-    env: &Env,
-    pool_id: u32,
-    investor: &Address,
-    amount: i128,
-    total_raised: i128,
-) {
+pub fn pool_joined(env: &Env, pool_id: u32, investor: &Address, amount: i128, total_raised: i128) {
     let topics = (Symbol::new(env, "PoolJoined"), pool_id);
     env.events()
         .publish(topics, (investor.clone(), amount, total_raised));

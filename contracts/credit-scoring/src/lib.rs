@@ -14,7 +14,7 @@ mod types;
 mod test;
 
 pub use errors::Error;
-pub use types::{CreditScore, CreditTier, IssuerFactors, StorageKey};
+pub use types::{CreditScore, CreditTier, IssuerFactors, PendingDowngrade, StorageKey};
 
 use soroban_sdk::{contract, contractimpl, Address, Env};
 
@@ -84,11 +84,7 @@ impl CreditScoring {
 
     /// Admin-only: register a contract address as authorised to call
     /// `compute_credit_score`.
-    pub fn set_authorised_caller(
-        env: Env,
-        caller: Address,
-        authorised: bool,
-    ) -> Result<(), Error> {
+    pub fn set_authorised_caller(env: Env, caller: Address, authorised: bool) -> Result<(), Error> {
         let admin: Address = env
             .storage()
             .instance()
@@ -141,5 +137,147 @@ impl CreditScoring {
             .persistent()
             .get(&StorageKey::Score(issuer))
             .ok_or(Error::IssuerNotFound)
+    }
+
+    /// Admin-only: configure the grace ledger window before a risk downgrade takes effect.
+    pub fn set_downgrade_grace_ledgers(
+        env: Env,
+        admin: Address,
+        grace_ledgers: u32,
+    ) -> Result<(), Error> {
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&StorageKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        admin.require_auth();
+        env.storage()
+            .instance()
+            .set(&StorageKey::GracePeriodLedgers, &grace_ledgers);
+        Ok(())
+    }
+
+    pub fn get_downgrade_grace_ledgers(env: Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&StorageKey::GracePeriodLedgers)
+            .unwrap_or(0)
+    }
+
+    /// Propose a risk downgrade. If a grace period is configured and the new tier is
+    /// lower than the active tier, stores a pending downgrade instead of mutating
+    /// the active rating immediately.
+    pub fn propose_downgrade(
+        env: Env,
+        caller: Address,
+        issuer: Address,
+        factors: IssuerFactors,
+    ) -> Result<Option<PendingDowngrade>, Error> {
+        require_authorised(&env, &caller)?;
+
+        let score = compute_score_internal(&factors);
+        let tier = tier_from_score(score);
+        let proposed_score = CreditScore {
+            score,
+            tier,
+            factors,
+        };
+
+        let current = env
+            .storage()
+            .persistent()
+            .get::<StorageKey, CreditScore>(&StorageKey::Score(issuer.clone()));
+        let grace = Self::get_downgrade_grace_ledgers(env.clone());
+
+        if let Some(active) = current {
+            if tier < active.tier && grace > 0 {
+                let now = env.ledger().sequence();
+                let pending = PendingDowngrade {
+                    proposed_score,
+                    proposed_at_ledger: now,
+                    execute_after_ledger: now.saturating_add(grace),
+                };
+                env.storage()
+                    .persistent()
+                    .set(&StorageKey::PendingDowngrade(issuer.clone()), &pending);
+                events::downgrade_proposed(
+                    &env,
+                    &issuer,
+                    active.tier,
+                    tier,
+                    pending.execute_after_ledger,
+                );
+                return Ok(Some(pending));
+            }
+        }
+
+        let old_tier = env
+            .storage()
+            .persistent()
+            .get(&StorageKey::Score(issuer.clone()))
+            .map(|s: CreditScore| s.tier)
+            .unwrap_or(CreditTier::C);
+        env.storage()
+            .persistent()
+            .set(&StorageKey::Score(issuer.clone()), &proposed_score);
+        events::credit_score_updated(&env, &issuer, old_tier, tier);
+        Ok(None)
+    }
+
+    /// Authorised-caller only: renew rating and cancel any pending downgrade.
+    pub fn renew_and_cancel_downgrade(
+        env: Env,
+        caller: Address,
+        issuer: Address,
+    ) -> Result<(), Error> {
+        require_authorised(&env, &caller)?;
+        let key = StorageKey::PendingDowngrade(issuer.clone());
+        if !env.storage().persistent().has(&key) {
+            return Err(Error::NoPendingDowngrade);
+        }
+        env.storage().persistent().remove(&key);
+        events::downgrade_cancelled(&env, &issuer, &caller);
+        Ok(())
+    }
+
+    /// Execute a pending downgrade once its grace period has elapsed.
+    pub fn execute_pending_downgrade(
+        env: Env,
+        caller: Address,
+        issuer: Address,
+    ) -> Result<CreditScore, Error> {
+        require_authorised(&env, &caller)?;
+        let key = StorageKey::PendingDowngrade(issuer.clone());
+        let pending: PendingDowngrade = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(Error::NoPendingDowngrade)?;
+
+        if env.ledger().sequence() < pending.execute_after_ledger {
+            return Err(Error::GracePeriodNotExpired);
+        }
+
+        let old_tier = env
+            .storage()
+            .persistent()
+            .get(&StorageKey::Score(issuer.clone()))
+            .map(|s: CreditScore| s.tier)
+            .unwrap_or(CreditTier::C);
+        env.storage()
+            .persistent()
+            .set(&StorageKey::Score(issuer.clone()), &pending.proposed_score);
+        env.storage().persistent().remove(&key);
+        events::credit_score_updated(&env, &issuer, old_tier, pending.proposed_score.tier);
+        Ok(pending.proposed_score)
+    }
+
+    pub fn get_pending_downgrade(env: Env, issuer: Address) -> Option<PendingDowngrade> {
+        env.storage()
+            .persistent()
+            .get(&StorageKey::PendingDowngrade(issuer))
     }
 }

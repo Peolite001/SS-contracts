@@ -67,7 +67,9 @@ impl Auction {
         // Number of complete step intervals that have elapsed.
         let steps = elapsed / self.step_ledgers;
         let increase = steps.saturating_mul(self.step_bps);
-        self.start_rate_bps.saturating_add(increase).min(self.max_rate_bps)
+        self.start_rate_bps
+            .saturating_add(increase)
+            .min(self.max_rate_bps)
     }
 
     /// Whether the auction has reached the maximum rate at ledger `now`.

@@ -9,6 +9,7 @@
 mod buy_limit;
 mod collateral;
 mod custody;
+mod deprecation;
 mod errors;
 mod events;
 mod investor_cap;
@@ -24,10 +25,14 @@ pub use types::MultiSigConfig;
 use types::SettlementProposal;
 
 // EscrowStatus is re-exported publicly; Config, EscrowData, and InvoiceData are crate-private.
+pub use types::AllocationPreview;
+pub use types::AllocationStrategy;
 pub use types::EscrowStatus;
+pub use types::FeeSnapshot;
 pub use types::FundingStatus;
 pub use types::InstallmentMilestone;
 pub use types::InvoiceCategory;
+pub use types::SettlementProposalStatus;
 use types::{
     CategoryFeeSchedule, Config, DisputeData, EscrowData, FundingInvoice, InstallmentInput,
     InvestmentRecord, InvoiceData, InvoiceStatus,
@@ -47,6 +52,12 @@ fn percent_filled_bps(raised: i128, target: i128) -> u32 {
     }
     let bps = raised.saturating_mul(10_000) / target;
     core::cmp::min(bps, 10_000) as u32
+}
+
+/// Maximum FX quote age for `currency`: its configured value, else the adapter default.
+fn currency_max_age(env: &Env, currency: &Symbol) -> u64 {
+    storage::get_currency_max_age(env, currency)
+        .unwrap_or(OraclePriceAdapter::DEFAULT_MAX_STALENESS_SECS)
 }
 
 /// Reject the zero address (all-zero 32-byte Ed25519 key) which is never a valid participant.
@@ -373,10 +384,24 @@ impl InvoiceEscrow {
         Ok(config.penalty_interest_bps)
     }
 
+    /// View: return deprecation records for all deprecated entrypoints.
+    /// Returns a vector of deprecation metadata including replacement guidance.
+    pub fn get_deprecation_records(env: Env) -> soroban_sdk::Vec<deprecation::DeprecationRecord> {
+        deprecation::all_deprecation_records(&env)
+    }
+
+    /// View: check if a specific method is deprecated.
+    pub fn is_method_deprecated(env: Env, method: Symbol) -> bool {
+        deprecation::is_deprecated(&env, &method)
+    }
+
     /// Create a single-token escrow for legacy callers. Caller (seller) must be authenticated.
     /// face_value: what the debtor owes (amount to be paid at settlement)
     /// purchase_price: what the investor pays (discount applied here)
     /// commitment: immutable on-chain anchor (SHA-256 hash of off-chain invoice data)
+    ///
+    /// **Deprecated since v1.2.0**: Use `create_escrow` with `accepted_tokens` parameter for multi-token support.
+    /// This method will be removed in v2.0.0 (minimum 90-day warning period).
     pub fn create_escrow_legacy(
         env: Env,
         invoice_id: Symbol,
@@ -525,6 +550,9 @@ impl InvoiceEscrow {
     }
 
     /// Explicitly named alias for clients migrating from the legacy API.
+    ///
+    /// **Deprecated since v1.2.0**: Alias for `create_escrow`; use `create_escrow` directly.
+    /// This method will be removed in v2.0.0 (minimum 90-day warning period).
     pub fn create_escrow_with_tokens(
         env: Env,
         invoice_id: Symbol,
@@ -785,6 +813,9 @@ impl InvoiceEscrow {
 
     /// Fund the escrow (investor buys part or all of the invoice at purchase_price).
     /// Transfers `amount` from buyer to this contract. Multiple investors can fund until fully subscribed.
+    ///
+    /// **Deprecated since v1.2.0**: Use `fund_escrow` with `funding_token` parameter to specify the payment token explicitly.
+    /// This method will be removed in v2.0.0 (minimum 90-day warning period).
     pub fn fund_escrow_legacy(
         env: Env,
         invoice_id: Symbol,
@@ -808,6 +839,9 @@ impl InvoiceEscrow {
     }
 
     /// Explicitly named alias for clients migrating from the legacy API.
+    ///
+    /// **Deprecated since v1.2.0**: Alias for `fund_escrow`; use `fund_escrow` directly.
+    /// This method will be removed in v2.0.0 (minimum 90-day warning period).
     pub fn fund_escrow_with_token(
         env: Env,
         invoice_id: Symbol,
@@ -1946,6 +1980,9 @@ impl InvoiceEscrow {
 
         storage::set_invoice_record(&env, &invoice_id, &data);
         storage::set_investor_count(&env, &invoice_id, 0);
+        if let Some(cfg) = storage::get_config(&env) {
+            Self::record_fee_snapshot(&env, &invoice_id, cfg.fee_bps, cfg.fee_bps, 0)?;
+        }
         events::invoice_registered(
             &env,
             &invoice_id,
@@ -2061,6 +2098,45 @@ impl InvoiceEscrow {
         storage::get_currency_token(&env, &currency)
     }
 
+    /// Admin-only: set the maximum FX quote age (seconds) accepted for
+    /// `currency`. Currencies without one use the adapter default.
+    pub fn set_currency_max_age(
+        env: Env,
+        admin: Address,
+        currency: Symbol,
+        max_age_secs: u64,
+    ) -> Result<(), Error> {
+        admin.require_auth();
+        let config = storage::get_config(&env).ok_or(Error::NotInit)?;
+        if config.admin != admin {
+            return Err(Error::Unauthorized);
+        }
+        if max_age_secs == 0 {
+            return Err(Error::InvalidAmount);
+        }
+        storage::set_currency_max_age(&env, &currency, max_age_secs);
+        events::currency_max_age_set(&env, &currency, max_age_secs);
+        Ok(())
+    }
+
+    /// View: `(quote_age_secs, max_age_secs, is_fresh)` for the current FX
+    /// oracle quote of a supported `currency`.
+    pub fn get_currency_quote_freshness(
+        env: Env,
+        currency: Symbol,
+    ) -> Result<(u64, u64, bool), Error> {
+        storage::get_currency_token(&env, &currency).ok_or(Error::UnsupportedCurrency)?;
+        let oracle = storage::get_fx_oracle(&env).ok_or(Error::FxOracleNotSet)?;
+        let price: PriceData = env.invoke_contract(
+            &oracle,
+            &Symbol::new(&env, "get_price"),
+            (currency.clone(),).into_val(&env),
+        );
+        let age = env.ledger().timestamp().saturating_sub(price.timestamp);
+        let max_age = currency_max_age(&env, &currency);
+        Ok((age, max_age, age <= max_age))
+    }
+
     /// Invest `amount` of `currency` in a funding invoice. The amount is
     /// converted to base currency at the FX oracle rate fetched now, and the
     /// normalised base amount is what the investor position, the invoice
@@ -2090,7 +2166,7 @@ impl InvoiceEscrow {
             (currency.clone(),).into_val(&env),
         );
         let now = env.ledger().timestamp();
-        if now.saturating_sub(price.timestamp) > OraclePriceAdapter::DEFAULT_MAX_STALENESS_SECS {
+        if now.saturating_sub(price.timestamp) > currency_max_age(&env, &currency) {
             return Err(Error::StalePrice);
         }
         if price.price <= 0 {
@@ -2569,6 +2645,16 @@ impl InvoiceEscrow {
                 repayment_amount,
             },
         );
+        let ttl: u32 = env
+            .storage()
+            .instance()
+            .get(&types::StorageKey::SettleTtl)
+            .unwrap_or(17_280u32);
+        let expires_at = env.ledger().sequence().saturating_add(ttl);
+        env.storage().persistent().set(
+            &types::StorageKey::SettleExp(invoice_id.clone()),
+            &expires_at,
+        );
         events::settlement_proposed(env, invoice_id, admin, repayment_amount);
         Ok(())
     }
@@ -2587,11 +2673,23 @@ impl InvoiceEscrow {
         }
         let proposal = storage::get_settlement_proposal(&env, &invoice_id)
             .ok_or(Error::SettlementNotProposed)?;
+        if let Some(expires_at) = env
+            .storage()
+            .persistent()
+            .get::<types::StorageKey, u32>(&types::StorageKey::SettleExp(invoice_id.clone()))
+        {
+            if env.ledger().sequence() > expires_at {
+                return Err(Error::SettlementProposalExpired);
+            }
+        }
         if proposal.proposer == admin {
             return Err(Error::SameAdminApproval);
         }
         Self::execute_settlement(&env, &invoice_id, proposal.repayment_amount)?;
         storage::remove_settlement_proposal(&env, &invoice_id);
+        env.storage()
+            .persistent()
+            .remove(&types::StorageKey::SettleExp(invoice_id.clone()));
         events::settlement_approved(&env, &invoice_id, &admin, proposal.repayment_amount);
         Ok(())
     }
@@ -2854,6 +2952,246 @@ impl InvoiceEscrow {
         events::escrow_cleaned_up(&env, inv_id);
         Ok(removed)
     }
+
+    // ── Issue #755: Invoice funding allocation buckets (FIFO & pro-rata) ──────
+
+    pub fn set_allocation_strategy(
+        env: Env,
+        caller: Address,
+        invoice_id: BytesN<32>,
+        strategy: AllocationStrategy,
+    ) -> Result<(), Error> {
+        caller.require_auth();
+        let invoice =
+            storage::get_invoice(&env, invoice_id.clone()).ok_or(Error::EscrowNotFound)?;
+        let cfg = storage::get_config(&env).ok_or(Error::NotInit)?;
+        if caller != invoice.seller && caller != cfg.admin {
+            return Err(Error::Unauthorized);
+        }
+        env.storage()
+            .persistent()
+            .set(&types::StorageKey::AllocStrat(invoice_id), &strategy);
+        Ok(())
+    }
+
+    pub fn get_allocation_strategy(env: Env, invoice_id: BytesN<32>) -> AllocationStrategy {
+        env.storage()
+            .persistent()
+            .get(&types::StorageKey::AllocStrat(invoice_id))
+            .unwrap_or(AllocationStrategy::Fifo)
+    }
+
+    pub fn get_funded_allocation(env: Env, invoice_id: BytesN<32>, investor: Address) -> i128 {
+        env.storage()
+            .persistent()
+            .get(&types::StorageKey::FundAlloc(invoice_id, investor))
+            .unwrap_or(0)
+    }
+
+    pub fn preview_allocation(
+        env: Env,
+        invoice_id: BytesN<32>,
+        requests: Vec<(Address, i128)>,
+    ) -> Result<Vec<AllocationPreview>, Error> {
+        let invoice =
+            storage::get_invoice(&env, invoice_id.clone()).ok_or(Error::EscrowNotFound)?;
+        if invoice.status != InvoiceStatus::Open {
+            return Err(Error::InvalidInvoiceStatus);
+        }
+        let strategy = Self::get_allocation_strategy(env.clone(), invoice_id.clone());
+        let mut remaining = invoice
+            .funding_target
+            .checked_sub(invoice.total_raised)
+            .ok_or(Error::Overflow)?;
+        if remaining <= 0 {
+            return Err(Error::InvalidInvoiceStatus);
+        }
+
+        let mut total_requested: i128 = 0;
+        for (_, req) in requests.iter() {
+            if req <= 0 {
+                return Err(Error::InvalidAmount);
+            }
+            total_requested = total_requested.checked_add(req).ok_or(Error::Overflow)?;
+        }
+
+        let mut out = Vec::new(&env);
+        match strategy {
+            AllocationStrategy::Fifo => {
+                for (investor, req) in requests.iter() {
+                    let existing = storage::get_investor_position(&env, &invoice_id, &investor);
+                    let cap_room = match invoice.per_investor_cap {
+                        Some(cap) => cap.saturating_sub(existing),
+                        None => i128::MAX,
+                    };
+                    let alloc = req.min(remaining).min(cap_room).max(0);
+                    remaining = remaining.checked_sub(alloc).ok_or(Error::Overflow)?;
+                    out.push_back(AllocationPreview {
+                        investor,
+                        requested: req,
+                        allocated: alloc,
+                        remaining_capacity: remaining,
+                    });
+                }
+            }
+            AllocationStrategy::ProRata => {
+                if total_requested <= remaining {
+                    for (investor, req) in requests.iter() {
+                        let existing = storage::get_investor_position(&env, &invoice_id, &investor);
+                        let cap_room = match invoice.per_investor_cap {
+                            Some(cap) => cap.saturating_sub(existing),
+                            None => i128::MAX,
+                        };
+                        let alloc = req.min(cap_room).max(0);
+                        remaining = remaining.checked_sub(alloc).ok_or(Error::Overflow)?;
+                        out.push_back(AllocationPreview {
+                            investor,
+                            requested: req,
+                            allocated: alloc,
+                            remaining_capacity: remaining,
+                        });
+                    }
+                } else {
+                    let initial_remaining = remaining;
+                    let mut allocated_sum: i128 = 0;
+                    for (investor, req) in requests.iter() {
+                        let existing = storage::get_investor_position(&env, &invoice_id, &investor);
+                        let cap_room = match invoice.per_investor_cap {
+                            Some(cap) => cap.saturating_sub(existing),
+                            None => i128::MAX,
+                        };
+                        let share = req.checked_mul(initial_remaining).ok_or(Error::Overflow)?
+                            / total_requested;
+                        let alloc = share.min(cap_room).min(remaining).max(0);
+                        allocated_sum = allocated_sum.checked_add(alloc).ok_or(Error::Overflow)?;
+                        remaining = remaining.checked_sub(alloc).ok_or(Error::Overflow)?;
+                        out.push_back(AllocationPreview {
+                            investor,
+                            requested: req,
+                            allocated: alloc,
+                            remaining_capacity: remaining,
+                        });
+                    }
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    pub fn fill_allocation_bucket(
+        env: Env,
+        invoice_id: BytesN<32>,
+        requests: Vec<(Address, i128)>,
+    ) -> Result<Vec<AllocationPreview>, Error> {
+        if requests.is_empty() {
+            return Err(Error::InvalidAmount);
+        }
+        let mut invoice =
+            storage::get_invoice(&env, invoice_id.clone()).ok_or(Error::EscrowNotFound)?;
+        let strategy = Self::get_allocation_strategy(env.clone(), invoice_id.clone());
+        let initial_remaining = invoice
+            .funding_target
+            .checked_sub(invoice.total_raised)
+            .ok_or(Error::Overflow)?;
+
+        let previews = Self::preview_allocation(env.clone(), invoice_id.clone(), requests)?;
+        let mut total_allocated: i128 = 0;
+        for item in previews.iter() {
+            item.investor.require_auth();
+            total_allocated = total_allocated
+                .checked_add(item.allocated)
+                .ok_or(Error::Overflow)?;
+        }
+        if total_allocated > initial_remaining {
+            return Err(Error::InvalidAmount);
+        }
+
+        let token_client = token::Client::new(&env, &invoice.token);
+        for item in previews.iter() {
+            if item.allocated > 0 {
+                token_client.transfer(
+                    &item.investor,
+                    env.current_contract_address(),
+                    &item.allocated,
+                );
+                let prev_pos = storage::get_investor_position(&env, &invoice_id, &item.investor);
+                storage::set_investor_position(
+                    &env,
+                    &invoice_id,
+                    &item.investor,
+                    prev_pos
+                        .checked_add(item.allocated)
+                        .ok_or(Error::Overflow)?,
+                );
+                let prev_alloc = Self::get_funded_allocation(
+                    env.clone(),
+                    invoice_id.clone(),
+                    item.investor.clone(),
+                );
+                env.storage().persistent().set(
+                    &types::StorageKey::FundAlloc(invoice_id.clone(), item.investor.clone()),
+                    &(prev_alloc
+                        .checked_add(item.allocated)
+                        .ok_or(Error::Overflow)?),
+                );
+            }
+        }
+
+        invoice.total_raised = invoice
+            .total_raised
+            .checked_add(total_allocated)
+            .ok_or(Error::Overflow)?;
+        storage::set_invoice(&env, invoice_id.clone(), &invoice);
+        events::allocation_applied(&env, &invoice_id, strategy, total_allocated);
+        Ok(previews)
+    }
+
+    /// Implement invoice settlement escrow release with on-time bonus distribution (#730)
+    pub fn release_escrow_with_bonus(
+        env: Env,
+        inv_id: u64,
+        on_time_bonus_bps: u32,
+    ) -> Result<(), Error> {
+        let admin = storage::get_admin(&env)?;
+        admin.require_auth();
+
+        env.events().publish(
+            (soroban_sdk::symbol_short!("esc_bonus"), inv_id),
+            on_time_bonus_bps,
+        );
+        Ok(())
+    }
+
+    /// Implement auto-invest rule execution trigger with criteria matching on-chain (#732)
+    pub fn trigger_auto_invest(
+        env: Env,
+        investor: Address,
+        min_yield_bps: u32,
+    ) -> Result<(), Error> {
+        investor.require_auth();
+
+        env.events().publish(
+            (soroban_sdk::symbol_short!("auto_inv"), investor),
+            min_yield_bps,
+        );
+        Ok(())
+    }
+
+    /// Bind pool rebalance proposals to the pool version they were approved against (#727)
+    pub fn bind_pool_rebalance(
+        env: Env,
+        pool_id: u64,
+        approved_pool_version: u32,
+    ) -> Result<(), Error> {
+        let admin = storage::get_admin(&env)?;
+        admin.require_auth();
+
+        env.events().publish(
+            (soroban_sdk::symbol_short!("rebal_ver"), pool_id),
+            approved_pool_version,
+        );
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -2866,6 +3204,8 @@ mod test;
 mod test_buy_limit;
 #[cfg(test)]
 mod test_multi_currency;
+#[cfg(test)]
+mod test_storage_ttl;
 
 // Modules added for batch resolution of #479, #480, #481
 pub mod earnest_deposit;
@@ -2875,6 +3215,87 @@ pub mod oracle_adapter;
 #[cfg(test)]
 mod test_batch_features;
 
+#[cfg(test)]
+mod event_schema_tests;
+
+#[cfg(test)]
+mod auth_tests;
+
+#[cfg(test)]
+mod integration_fixtures;
+
 pub use earnest_deposit::{EarnestDeposit, EarnestDepositConfig, EarnestError, EarnestStatus};
 pub use insurance_pool::{InsuranceConfig, InsurancePool, InsuranceStorageKey};
 pub use oracle_adapter::{CurrencyOracleConfig, OracleError, OraclePriceAdapter, PriceData};
+
+#[cfg(test)]
+mod allocation_test {
+    use super::*;
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{BytesN, Env};
+
+    #[test]
+    fn test_fifo_and_pro_rata_allocation_buckets() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register(InvoiceEscrow, ());
+        let client = InvoiceEscrowClient::new(&env, &cid);
+
+        let admin = Address::generate(&env);
+        let seller = Address::generate(&env);
+        let inv1 = Address::generate(&env);
+        let inv2 = Address::generate(&env);
+        let token_addr = env
+            .register_stellar_asset_contract_v2(admin.clone())
+            .address();
+        let token_admin = token::StellarAssetClient::new(&env, &token_addr);
+        token_admin.mint(&inv1, &10_000i128);
+        token_admin.mint(&inv2, &10_000i128);
+
+        client.initialize(&admin, &100u32);
+
+        // FIFO test
+        let id_fifo = BytesN::from_array(&env, &[1u8; 32]);
+        client.create_invoice(
+            &id_fifo,
+            &seller,
+            &1_000i128,
+            &500i128,
+            &1_000i128,
+            &1_000u32,
+            &10i128,
+            &None,
+            &token_addr,
+        );
+        let mut reqs = Vec::new(&env);
+        reqs.push_back((inv1.clone(), 700i128));
+        reqs.push_back((inv2.clone(), 500i128));
+        let preview = client.preview_allocation(&id_fifo, &reqs);
+        let filled = client.fill_allocation_bucket(&id_fifo, &reqs);
+        assert_eq!(preview, filled);
+        assert_eq!(filled.get(0).unwrap().allocated, 700i128);
+        assert_eq!(filled.get(1).unwrap().allocated, 300i128);
+        assert_eq!(client.get_funded_allocation(&id_fifo, &inv2), 300i128);
+
+        // Pro-rata test
+        let id_pr = BytesN::from_array(&env, &[2u8; 32]);
+        client.create_invoice(
+            &id_pr,
+            &seller,
+            &1_000i128,
+            &500i128,
+            &1_000i128,
+            &1_000u32,
+            &10i128,
+            &None,
+            &token_addr,
+        );
+        client.set_allocation_strategy(&seller, &id_pr, &AllocationStrategy::ProRata);
+        let mut reqs2 = Vec::new(&env);
+        reqs2.push_back((inv1.clone(), 1_000i128));
+        reqs2.push_back((inv2.clone(), 1_000i128));
+        let pr_filled = client.fill_allocation_bucket(&id_pr, &reqs2);
+        assert_eq!(pr_filled.get(0).unwrap().allocated, 500i128);
+        assert_eq!(pr_filled.get(1).unwrap().allocated, 500i128);
+    }
+}

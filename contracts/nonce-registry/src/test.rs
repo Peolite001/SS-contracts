@@ -41,7 +41,12 @@ fn test_bulk_invalidate_burns_all_nonces() {
     let used = U256::from_u32(&env, 1);
     client.consume_nonce(&wallet, &used);
 
-    let nonces = vec![&env, used.clone(), U256::from_u32(&env, 2), U256::from_u32(&env, 3)];
+    let nonces = vec![
+        &env,
+        used.clone(),
+        U256::from_u32(&env, 2),
+        U256::from_u32(&env, 3),
+    ];
     client.bulk_invalidate(&wallet, &nonces);
 
     assert_eq!(env.auths()[0].0, wallet);

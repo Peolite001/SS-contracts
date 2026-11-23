@@ -99,7 +99,7 @@ fn set_preferences_requires_wallet_auth() {
     let client = AlertSubscriptionClient::new(&env, &env.register(AlertSubscription, ()));
     let wallet = Address::generate(&env);
 
-    let result = client
-        .try_set_alert_preferences(&wallet, &vec![&env, pref(EventType::Settlement, false)]);
+    let result =
+        client.try_set_alert_preferences(&wallet, &vec![&env, pref(EventType::Settlement, false)]);
     assert!(result.is_err());
 }

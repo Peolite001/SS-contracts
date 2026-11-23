@@ -77,7 +77,9 @@ pub fn next_pool_id(env: &Env) -> u32 {
         .instance()
         .get(&StorageKey::NextPoolId)
         .unwrap_or(1);
-    env.storage().instance().set(&StorageKey::NextPoolId, &(pool_id + 1));
+    env.storage()
+        .instance()
+        .set(&StorageKey::NextPoolId, &(pool_id + 1));
     pool_id
 }
 

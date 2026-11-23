@@ -166,4 +166,6 @@ pub enum Error {
     CollateralReserved = 76,
     /// Payout would consume repayment deposits reserved for another invoice.
     RepaymentReserved = 77,
+    /// Pending settlement proposal has expired.
+    SettlementProposalExpired = 78,
 }

@@ -1,6 +1,6 @@
 use soroban_sdk::{Address, Env, Symbol, Vec};
 
-use crate::types::{DistributionState, FeeTier, StorageKey};
+use crate::types::{DistributionState, FeePromotion, FeeTier, StorageKey};
 
 /// Ledgers below which a `Distribution` persistent entry's TTL is extended
 /// (~7 days at 5s/ledger). Issue #128.
@@ -141,6 +141,17 @@ pub fn get_fee_tiers(env: &Env) -> Option<Vec<FeeTier>> {
 #[allow(dead_code)]
 pub fn set_fee_tiers(env: &Env, tiers: &Vec<FeeTier>) {
     env.storage().instance().set(&StorageKey::FeeTiers, tiers);
+}
+
+pub fn get_fee_promotion(env: &Env) -> Option<FeePromotion> {
+    env.storage().instance().get(&StorageKey::FeePromotion)
+}
+
+pub fn set_fee_promotion(env: &Env, promotion: &Option<FeePromotion>) {
+    match promotion {
+        Some(p) => env.storage().instance().set(&StorageKey::FeePromotion, p),
+        None => env.storage().instance().remove(&StorageKey::FeePromotion),
+    }
 }
 
 pub fn get_investor_bonus_bps(env: &Env) -> u32 {

@@ -55,11 +55,7 @@ impl ReferralTierUpgrade {
     /// * `admin`            – can update configuration.
     /// * `referral_contract`– the only caller allowed to call
     ///                        `on_referral_reward_paid`.
-    pub fn initialize(
-        env: Env,
-        admin: Address,
-        referral_contract: Address,
-    ) -> Result<(), Error> {
+    pub fn initialize(env: Env, admin: Address, referral_contract: Address) -> Result<(), Error> {
         if env.storage().instance().has(&StorageKey::Config) {
             return Err(Error::AlreadyInitialized);
         }

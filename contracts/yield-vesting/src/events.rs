@@ -29,5 +29,6 @@ pub fn tranche_released(
 ) {
     let topics = (Symbol::new(env, "TrancheReleased"), vest_id, tranche_index);
     let timestamp = env.ledger().timestamp();
-    env.events().publish(topics, (beneficiary.clone(), amount, timestamp));
+    env.events()
+        .publish(topics, (beneficiary.clone(), amount, timestamp));
 }

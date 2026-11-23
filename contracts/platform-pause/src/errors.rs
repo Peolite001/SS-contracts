@@ -21,4 +21,12 @@ pub enum Error {
     NoResumeQueued = 6,
     /// The queued resume's 24h timelock has not yet elapsed.
     TimelockNotElapsed = 7,
+    /// Contract address is already registered.
+    ContractAlreadyRegistered = 8,
+    /// Contract address is not registered.
+    ContractNotRegistered = 9,
+    /// Too many contracts registered.
+    TooManyContracts = 10,
+    /// Failed to propagate freeze to a registered contract.
+    FreezePropagationFailed = 11,
 }

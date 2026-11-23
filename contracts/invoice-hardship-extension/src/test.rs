@@ -28,7 +28,8 @@ impl<'a> Ctx<'a> {
     /// Grant a hardship extension to the tracked invoice.
     fn grant(&self, days: u32, text: &str) -> u32 {
         let reason = String::from_str(&self.env(), text);
-        self.client.grant_hardship_extension(&self.invoice_id, &days, &reason)
+        self.client
+            .grant_hardship_extension(&self.invoice_id, &days, &reason)
     }
 
     /// The environment the contract runs in.

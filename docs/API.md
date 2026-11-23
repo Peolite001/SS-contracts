@@ -164,37 +164,30 @@ Returns the first unsettled milestone, or `None` when no schedule exists or all 
 - `settlement_proposed`
 - `settlement_approved`
 
-## Invoice Registration Contract
+## API Deprecation Policy
 
-`invoice-registration` maps a stable, caller-supplied business identifier
-(`external_invoice_id`) to an internal on-chain invoice id, once per issuer.
-It performs no token mint, escrow creation or balance mutation; it is the
-idempotency gate callers consult before issuing an invoice.
+StellarSettle follows a structured deprecation lifecycle for public entrypoints:
 
-### `register_invoice(issuer, external_invoice_id, invoice_id) -> RegistrationResult`
-- **Auth:** Requires `issuer` authorization; a key cannot be claimed on behalf
-  of another issuer.
-- **Key:** `(issuer, external_invoice_id)` — keys are namespaced per issuer, so
-  two issuers may each use the same business identifier.
-- **Rules:** `external_invoice_id` must be non-empty and at most 128 bytes.
-  An internal `invoice_id` may be bound at most once.
-- **Result:** Returns `{ invoice_id, external_invoice_id, issuer, registered_at }`.
-- **Errors:** `InvalidExternalId` (1), `AlreadyRegistered` (2),
-  `InvoiceAlreadyRegistered` (3), `InvalidAddress` (5). All validation and
-  duplicate checks run before any storage write, so a rejected call leaves no
-  registration state behind.
-- **Event:** emits `invoice_registered` exactly once, on the first successful
-  registration. Topics: `(invoice_registered, issuer)`; data:
-  `(external_invoice_id, invoice_id)`.
+1. **Current** - Recommended API, fully supported.
+2. **Deprecated** - Still functional but marked for removal. Minimum 90-day warning period before removal.
+3. **Removed** - No longer available; calls will fail.
 
-### `resolve_registration(issuer, external_invoice_id) -> RegistrationResult`
-Returns the registration owned by `issuer` for that identifier, or
-`NotRegistered` (4). Registrations owned by a different issuer are never
-disclosed.
+### Deprecated Invoice Escrow Entrypoints
 
-### `verify_registration(issuer, external_invoice_id, invoice_id) -> bool`
-Returns whether the key is registered by `issuer` and resolves to `invoice_id`.
+| Method | Deprecated Since | Removal Target | Replacement | Migration Guidance |
+|--------|------------------|----------------|-------------|-------------------|
+| `create_escrow_legacy` | v1.2.0 | v2.0.0 | `create_escrow` | Use `create_escrow` with `accepted_tokens` parameter for multi-token support |
+| `fund_escrow_legacy` | v1.2.0 | v2.0.0 | `fund_escrow` | Use `fund_escrow` with `funding_token` parameter to specify the payment token explicitly |
+| `create_escrow_with_tokens` | v1.2.0 | v2.0.0 | `create_escrow` | Alias for `create_escrow`; use `create_escrow` directly |
+| `fund_escrow_with_token` | v1.2.0 | v2.0.0 | `fund_escrow` | Alias for `fund_escrow`; use `fund_escrow` directly |
 
-### `get_registration_by_invoice(invoice_id) -> RegistrationResult`
-Reverse lookup: returns the registration bound to an internal invoice id, or
-`NotRegistered` (4).
+### Deprecation Query Functions
+
+- `get_deprecation_records() -> Vec<DeprecationRecord>` - Returns deprecation metadata for all deprecated entrypoints.
+- `is_method_deprecated(method: Symbol) -> bool` - Checks if a specific method is deprecated.
+
+### Removal Requirements
+
+- Every removal requires a migration guide and a tracking issue.
+- Legacy calls remain functional through the removal target version.
+- Inventory distinguishes current and deprecated entrypoints via `get_deprecation_records`.

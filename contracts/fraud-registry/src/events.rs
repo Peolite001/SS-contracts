@@ -14,11 +14,14 @@ pub fn fraud_report_submitted(
     timestamp: u64,
 ) {
     env.events().publish(
+        (Symbol::new(env, "ReportSubmitted"), report_id),
         (
-            Symbol::new(env, "ReportSubmitted"),
-            report_id,
+            invoice.clone(),
+            reporter.clone(),
+            reason.clone(),
+            detail.clone(),
+            timestamp,
         ),
-        (invoice.clone(), reporter.clone(), reason.clone(), detail.clone(), timestamp),
     );
 }
 
@@ -33,10 +36,13 @@ pub fn fraud_report_resolved(
     timestamp: u64,
 ) {
     env.events().publish(
+        (Symbol::new(env, "ReportResolved"), report_id),
         (
-            Symbol::new(env, "ReportResolved"),
-            report_id,
+            invoice.clone(),
+            resolver.clone(),
+            outcome,
+            notes.clone(),
+            timestamp,
         ),
-        (invoice.clone(), resolver.clone(), outcome, notes.clone(), timestamp),
     );
 }

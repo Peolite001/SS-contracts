@@ -19,10 +19,7 @@ pub fn category_assigned(
     category: InvoiceCategory,
     risk_tier: RiskTier,
 ) {
-    let topics = (
-        Symbol::new(env, "CategoryAssigned"),
-        invoice_id.clone(),
-    );
+    let topics = (Symbol::new(env, "CategoryAssigned"), invoice_id.clone());
     env.events()
         .publish(topics, (category as u32, risk_tier as u32));
 }

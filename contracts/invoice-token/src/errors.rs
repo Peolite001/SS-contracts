@@ -47,4 +47,14 @@ pub enum Error {
     AccountNotFrozen = 20,
     /// An address parameter contains an all-zero account or contract address.
     InvalidAddress = 21,
+    /// Direct transfer_from is disabled; recipient consent via request_transfer/accept_transfer is required.
+    TransferConsentRequired = 22,
+    /// Pending transfer request does not exist.
+    PendingTransferNotFound = 23,
+    /// Pending transfer request has expired.
+    PendingTransferExpired = 24,
+    /// Caller is not the intended recipient of the pending transfer.
+    NotTransferRecipient = 25,
+    /// Transfer nonce has already been used.
+    InvalidNonce = 26,
 }

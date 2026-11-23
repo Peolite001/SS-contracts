@@ -11,6 +11,8 @@ pub fn fee_discount_applied(
     final_fee: i128,
 ) {
     let topics = (Symbol::new(env, "FeeDiscountApplied"), wallet.clone());
-    env.events()
-        .publish(topics, (tier as u32, original_fee, discount_amount, final_fee));
+    env.events().publish(
+        topics,
+        (tier as u32, original_fee, discount_amount, final_fee),
+    );
 }

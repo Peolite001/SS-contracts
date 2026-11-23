@@ -22,6 +22,28 @@ pub enum StorageKey {
     RoleAdmin(soroban_sdk::Symbol),
     /// Role grant flag for a given (role, account) pair (Issue #182).
     RoleGrant(soroban_sdk::Symbol, soroban_sdk::Address),
+    /// Instance: optional time-boxed promotional platform fee.
+    FeePromotion,
+    /// Persistent: per-recipient payout recovery receipt by payout_id.
+    PayoutRec(soroban_sdk::BytesN<32>),
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PayoutStatus {
+    pub recipient: Address,
+    pub amount: i128,
+    pub paid: bool,
+    pub failure_reason: Option<soroban_sdk::Symbol>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PayoutReceipt {
+    pub payout_id: soroban_sdk::BytesN<32>,
+    pub results: Vec<PayoutStatus>,
+    pub total_paid: i128,
+    pub all_succeeded: bool,
 }
 
 #[contracttype]
@@ -38,6 +60,16 @@ pub struct FeeTier {
     pub min_amount: i128,
     pub max_amount: i128,
     pub fee_bps: u32,
+}
+
+/// Promotional platform fee, active while `start_ledger <= ledger < end_ledger`.
+/// An active promotion takes precedence over the volume fee tiers.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeePromotion {
+    pub fee_bps: u32,
+    pub start_ledger: u32,
+    pub end_ledger: u32,
 }
 
 /// Maximum allowed fee in basis points (100% = 10,000 BPS). Issue #124.

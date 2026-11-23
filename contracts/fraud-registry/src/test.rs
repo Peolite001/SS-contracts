@@ -3,7 +3,9 @@
 
 use super::*;
 use soroban_sdk::testutils::{Address as _, Events, Ledger};
-use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, String, Symbol, TryFromVal, TryIntoVal, Val, Vec};
+use soroban_sdk::{
+    contract, contractimpl, Address, BytesN, Env, String, Symbol, TryFromVal, TryIntoVal, Val, Vec,
+};
 
 use crate::types::{FraudReport, ReportOutcome, ReportStatus};
 
@@ -12,9 +14,7 @@ fn parse_event(env: &Env, event: &soroban_sdk::xdr::ContractEvent) -> (Address, 
     let contract_addr = match &event.contract_id {
         Some(hash) => Address::try_from_val(
             env,
-            &soroban_sdk::xdr::ScVal::Address(soroban_sdk::xdr::ScAddress::Contract(
-                hash.clone(),
-            )),
+            &soroban_sdk::xdr::ScVal::Address(soroban_sdk::xdr::ScAddress::Contract(hash.clone())),
         )
         .unwrap(),
         None => Address::generate(env),
@@ -95,7 +95,9 @@ fn test_submit_report_happy_path() {
     let reason = Symbol::new(&s.env, "fake_inv");
     let detail = test_hash(&s.env, "evidence-001");
 
-    let report_id = s.client.submit_report(&s.investor_a, &s.invoice, &reason, &detail);
+    let report_id = s
+        .client
+        .submit_report(&s.investor_a, &s.invoice, &reason, &detail);
     assert_eq!(report_id, 1);
 
     let report: FraudReport = s.client.get_report(&report_id);
@@ -183,7 +185,8 @@ fn test_resolve_report_confirmed() {
         .client
         .submit_report(&s.investor_a, &s.invoice, &reason, &detail);
     s.env.ledger().set_timestamp(1000);
-    s.client.resolve_report(&report_id, &ReportOutcome::Confirmed);
+    s.client
+        .resolve_report(&report_id, &ReportOutcome::Confirmed);
 
     let report: FraudReport = s.client.get_report(&report_id);
     assert_eq!(report.status, ReportStatus::Confirmed);
@@ -200,7 +203,8 @@ fn test_resolve_report_dismissed() {
     let report_id = s
         .client
         .submit_report(&s.investor_a, &s.invoice, &reason, &detail);
-    s.client.resolve_report(&report_id, &ReportOutcome::Dismissed);
+    s.client
+        .resolve_report(&report_id, &ReportOutcome::Dismissed);
 
     let report: FraudReport = s.client.get_report(&report_id);
     assert_eq!(report.status, ReportStatus::Dismissed);
@@ -216,7 +220,8 @@ fn test_double_resolve_rejected() {
         .client
         .submit_report(&s.investor_a, &s.invoice, &reason, &detail);
 
-    s.client.resolve_report(&report_id, &ReportOutcome::Confirmed);
+    s.client
+        .resolve_report(&report_id, &ReportOutcome::Confirmed);
 
     // Double resolve fails.
     let r = s
@@ -293,7 +298,8 @@ fn test_fraud_report_resolved_event() {
     let report_id = s
         .client
         .submit_report(&s.investor_a, &s.invoice, &reason, &detail);
-    s.client.resolve_report(&report_id, &ReportOutcome::Confirmed);
+    s.client
+        .resolve_report(&report_id, &ReportOutcome::Confirmed);
 
     assert!(has_event(&s.env, "ReportResolved"));
 }

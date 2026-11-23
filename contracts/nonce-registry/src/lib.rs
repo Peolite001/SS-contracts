@@ -37,7 +37,9 @@ impl NonceRegistry {
         if env.storage().instance().has(&StorageKey::Consumer) {
             return Err(Error::AlreadyInitialized);
         }
-        env.storage().instance().set(&StorageKey::Consumer, &consumer);
+        env.storage()
+            .instance()
+            .set(&StorageKey::Consumer, &consumer);
         Ok(())
     }
 

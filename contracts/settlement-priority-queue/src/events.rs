@@ -26,15 +26,15 @@ pub fn priority_set(env: &Env, admin: &soroban_sdk::Address, order: &Vec<PayeeCl
 ///
 /// Topics: ("class_paid", invoice_id)
 /// Data:   (class: u32, amount: i128, shortfall: i128)
-pub fn class_paid(
-    env: &Env,
-    invoice_id: &BytesN<32>,
-    allocation: &ClassAllocation,
-) {
+pub fn class_paid(env: &Env, invoice_id: &BytesN<32>, allocation: &ClassAllocation) {
     let topics = (Symbol::new(env, "class_paid"), invoice_id.clone());
     env.events().publish(
         topics,
-        (allocation.class as u32, allocation.amount, allocation.shortfall),
+        (
+            allocation.class as u32,
+            allocation.amount,
+            allocation.shortfall,
+        ),
     );
 }
 

@@ -18,10 +18,7 @@ pub fn fee_updated(
     timestamp: u64,
 ) {
     env.events().publish(
-        (
-            Symbol::new(env, "FeeUpdated"),
-            fee_type as u32,
-        ),
+        (Symbol::new(env, "FeeUpdated"), fee_type as u32),
         (old_bps, new_bps, admin.clone(), timestamp),
     );
 }

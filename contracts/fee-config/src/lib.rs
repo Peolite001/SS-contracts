@@ -27,12 +27,7 @@ pub struct FeeConfig;
 #[contractimpl]
 impl FeeConfig {
     /// Initialize the contract with admin and fee bounds (basis points).
-    pub fn initialize(
-        env: Env,
-        admin: Address,
-        min_bps: u32,
-        max_bps: u32,
-    ) -> Result<(), Error> {
+    pub fn initialize(env: Env, admin: Address, min_bps: u32, max_bps: u32) -> Result<(), Error> {
         if storage::is_initialized(&env) {
             return Err(Error::AlreadyInit);
         }
@@ -55,7 +50,12 @@ impl FeeConfig {
 
     /// Admin-only: set the fee rate for a fee type. Validates the rate is
     /// within the configured [min_bps, max_bps] bounds before storing.
-    pub fn set_fee(env: Env, admin: Address, fee_type: FeeType, rate_bps: u32) -> Result<(), Error> {
+    pub fn set_fee(
+        env: Env,
+        admin: Address,
+        fee_type: FeeType,
+        rate_bps: u32,
+    ) -> Result<(), Error> {
         let config = storage::get_config(&env).ok_or(Error::NotInit)?;
         admin.require_auth();
         if config.admin != admin {

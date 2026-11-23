@@ -9,7 +9,10 @@ pub fn hardship_extension_granted(
     additional_days: u32,
     reason: &String,
 ) {
-    let topics = (Symbol::new(env, "HardshipExtensionGranted"), invoice_id.clone());
+    let topics = (
+        Symbol::new(env, "HardshipExtensionGranted"),
+        invoice_id.clone(),
+    );
     env.events()
         .publish(topics, (additional_days, reason.clone()));
 }

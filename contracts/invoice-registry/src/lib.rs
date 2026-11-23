@@ -36,11 +36,7 @@ fn ensure_non_zero_address(env: &Env, address: &Address) -> Result<(), Error> {
 }
 
 /// Return a copy of `index` without `invoice_id` (order preserved).
-fn without_invoice(
-    env: &Env,
-    index: &Vec<BytesN<32>>,
-    invoice_id: &BytesN<32>,
-) -> Vec<BytesN<32>> {
+fn without_invoice(env: &Env, index: &Vec<BytesN<32>>, invoice_id: &BytesN<32>) -> Vec<BytesN<32>> {
     let mut out = Vec::new(env);
     for entry in index.iter() {
         if entry != *invoice_id {
@@ -123,10 +119,7 @@ impl InvoiceRegistry {
     }
 
     /// View: return the category and risk tier assigned to an invoice.
-    pub fn get_category(
-        env: Env,
-        invoice_id: BytesN<32>,
-    ) -> Result<CategoryAssignment, Error> {
+    pub fn get_category(env: Env, invoice_id: BytesN<32>) -> Result<CategoryAssignment, Error> {
         storage::get_assignment(&env, &invoice_id).ok_or(Error::NotRegistered)
     }
 
@@ -150,8 +143,7 @@ impl InvoiceRegistry {
         }
         admin.require_auth();
 
-        let assignment =
-            storage::get_assignment(&env, &invoice_id).ok_or(Error::NotRegistered)?;
+        let assignment = storage::get_assignment(&env, &invoice_id).ok_or(Error::NotRegistered)?;
         let index = storage::get_index(&env, assignment.category);
         let trimmed = without_invoice(&env, &index, &invoice_id);
         storage::set_index(&env, assignment.category, &trimmed);
@@ -161,11 +153,7 @@ impl InvoiceRegistry {
 
     /// Admin-only: bind the contract (e.g. the fraud registry) allowed to flag
     /// invoices as under review.
-    pub fn set_review_authority(
-        env: Env,
-        admin: Address,
-        authority: Address,
-    ) -> Result<(), Error> {
+    pub fn set_review_authority(env: Env, admin: Address, authority: Address) -> Result<(), Error> {
         let stored_admin = storage::get_admin(&env).ok_or(Error::NotInit)?;
         if admin != stored_admin {
             return Err(Error::Unauthorized);

@@ -91,7 +91,11 @@ pub fn set_report(env: &Env, report: &FraudReport) {
 /// Get the list of report ids filed against an invoice.
 pub fn get_reports_by_invoice(env: &Env, invoice: &BytesN<32>) -> Vec<u32> {
     let key = StorageKey::ReportsByInv(invoice.clone());
-    let ids = env.storage().persistent().get(&key).unwrap_or(Vec::new(env));
+    let ids = env
+        .storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or(Vec::new(env));
     if env.storage().persistent().has(&key) {
         bump_persistent(env, &key);
     }
@@ -101,7 +105,11 @@ pub fn get_reports_by_invoice(env: &Env, invoice: &BytesN<32>) -> Vec<u32> {
 /// Append a report id to an invoice's report list.
 pub fn add_report_to_invoice(env: &Env, invoice: &BytesN<32>, report_id: u32) {
     let key = StorageKey::ReportsByInv(invoice.clone());
-    let mut ids: Vec<u32> = env.storage().persistent().get(&key).unwrap_or(Vec::new(env));
+    let mut ids: Vec<u32> = env
+        .storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or(Vec::new(env));
     ids.push_back(report_id);
     env.storage().persistent().set(&key, &ids);
     bump_persistent(env, &key);

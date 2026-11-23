@@ -44,6 +44,25 @@ pub enum StorageKey {
     History(soroban_sdk::Address),
     /// Persistent: whether an account is restricted from token operations.
     Frozen(soroban_sdk::Address),
+    /// Instance: whether direct transfer_from is allowed without recipient consent.
+    DirectPol,
+    /// Instance: auto-incrementing ID for pending transfer requests.
+    NextXferId,
+    /// Persistent: pending consent-gated transfer by ID.
+    PendXfer(u64),
+    /// Persistent: consumed transfer consent nonce by (from, nonce).
+    UsedXNonce(soroban_sdk::Address, u64),
+}
+
+/// Pending consent-gated position transfer.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PendingTransfer {
+    pub from: soroban_sdk::Address,
+    pub to: soroban_sdk::Address,
+    pub amount: i128,
+    pub nonce: u64,
+    pub expiry_ledger: u32,
 }
 
 /// Token metadata and admin config (instance storage).

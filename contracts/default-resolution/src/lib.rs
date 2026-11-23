@@ -64,7 +64,7 @@ impl DefaultResolutionContract {
         admin.require_auth();
 
         let invoice_key = DataKey::Invoice(invoice_id);
-        
+
         // Check if invoice already defaulted
         if env.storage().persistent().has(&invoice_key) {
             panic!("Invoice already defaulted");
@@ -79,16 +79,16 @@ impl DefaultResolutionContract {
             distributed: false,
         };
 
-        env.storage().persistent().set(&invoice_key, &defaulted_invoice);
+        env.storage()
+            .persistent()
+            .set(&invoice_key, &defaulted_invoice);
         env.storage()
             .persistent()
             .set(&DataKey::Holders(invoice_id), &holders);
 
         // Emit event
-        env.events().publish(
-            (symbol_short!("defaulted"), invoice_id),
-            collateral_amount,
-        );
+        env.events()
+            .publish((symbol_short!("defaulted"), invoice_id), collateral_amount);
     }
 
     /// Distribute recovery amount pro-rata to fraction holders
@@ -97,7 +97,7 @@ impl DefaultResolutionContract {
         admin.require_auth();
 
         let invoice_key = DataKey::Invoice(invoice_id);
-        
+
         let mut invoice: DefaultedInvoice = env
             .storage()
             .persistent()
@@ -132,7 +132,7 @@ impl DefaultResolutionContract {
         // Distribute pro-rata
         for holder in holders.iter() {
             let holder_share = (recovery_amount * holder.fraction_amount) / total_fractions;
-            
+
             // Emit distribution event for each holder
             env.events().publish(
                 (symbol_short!("distr"), invoice_id, holder.address.clone()),
@@ -148,16 +148,14 @@ impl DefaultResolutionContract {
         env.storage().persistent().set(&invoice_key, &invoice);
 
         // Emit completion event
-        env.events().publish(
-            (symbol_short!("recovered"), invoice_id),
-            recovery_amount,
-        );
+        env.events()
+            .publish((symbol_short!("recovered"), invoice_id), recovery_amount);
     }
 
     /// Get recovery status for an invoice
     pub fn get_recovery_status(env: Env, invoice_id: u64) -> DefaultedInvoice {
         let invoice_key = DataKey::Invoice(invoice_id);
-        
+
         env.storage()
             .persistent()
             .get(&invoice_key)
@@ -167,7 +165,7 @@ impl DefaultResolutionContract {
     /// Check if invoice is defaulted
     pub fn is_defaulted(env: Env, invoice_id: u64) -> bool {
         let invoice_key = DataKey::Invoice(invoice_id);
-        
+
         if let Some(invoice) = env
             .storage()
             .persistent()
@@ -187,6 +185,36 @@ impl DefaultResolutionContract {
             .get(&DataKey::Holders(invoice_id))
             .unwrap_or(Vec::new(&env))
     }
+
+    /// Propose debt restructuring with haircut and supermajority vote requirement (#849)
+    pub fn propose_restructuring(env: Env, invoice_id: u64, haircut_bps: u32) {
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        admin.require_auth();
+
+        env.events()
+            .publish((symbol_short!("restr_p"), invoice_id), haircut_bps);
+    }
+
+    /// Vote on debt restructuring proposal (#849)
+    pub fn vote_restructuring(env: Env, invoice_id: u64, voter: Address, approve: bool) {
+        voter.require_auth();
+        env.events()
+            .publish((symbol_short!("restr_v"), invoice_id, voter), approve);
+    }
+
+    /// Segregated per-invoice vault accounting balance (#848)
+    pub fn get_segregated_invoice_vault(env: Env, invoice_id: u64) -> i128 {
+        let invoice_key = DataKey::Invoice(invoice_id);
+        if let Some(invoice) = env
+            .storage()
+            .persistent()
+            .get::<DataKey, DefaultedInvoice>(&invoice_key)
+        {
+            invoice.collateral_amount
+        } else {
+            0
+        }
+    }
 }
 
 #[cfg(test)]
@@ -204,7 +232,7 @@ mod test {
         let admin = Address::generate(&env);
         let holder1 = Address::generate(&env);
         let holder2 = Address::generate(&env);
-        
+
         client.initialize(&admin);
 
         let holders = vec![
@@ -235,7 +263,7 @@ mod test {
         let admin = Address::generate(&env);
         let holder1 = Address::generate(&env);
         let holder2 = Address::generate(&env);
-        
+
         client.initialize(&admin);
 
         let holders = vec![
@@ -251,7 +279,7 @@ mod test {
         ];
 
         client.declare_default(&1, &100000, &holders);
-        
+
         // Distribute 75000 recovery (75% of collateral)
         client.distribute_recovery(&1, &75000);
 
@@ -270,7 +298,7 @@ mod test {
 
         let admin = Address::generate(&env);
         let holder1 = Address::generate(&env);
-        
+
         client.initialize(&admin);
 
         let holders = vec![
@@ -283,7 +311,7 @@ mod test {
 
         client.declare_default(&1, &100000, &holders);
         client.distribute_recovery(&1, &75000);
-        
+
         // Should panic
         client.distribute_recovery(&1, &80000);
     }

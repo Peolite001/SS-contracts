@@ -10,7 +10,10 @@ pub struct Quote {
 
 pub fn quotes_at_spread(last_price: i128, spread_bps: u32) -> Quote {
     let delta = last_price * spread_bps as i128 / 10_000;
-    Quote { bid: last_price - delta, ask: last_price + delta }
+    Quote {
+        bid: last_price - delta,
+        ask: last_price + delta,
+    }
 }
 
 pub fn capped_position(position: i128, max_position: i128) -> i128 {

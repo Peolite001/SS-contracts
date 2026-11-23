@@ -371,11 +371,15 @@ fn get_snapshot_balance_ignores_post_snapshot_changes() {
     ctx.snapshot
         .set_holder_balance(&ctx.admin, &ctx.inv1, &carol, &900);
 
-    assert_eq!(ctx.snapshot.get_snapshot_balance(&ctx.inv1, &id, &alice), 500);
+    assert_eq!(
+        ctx.snapshot.get_snapshot_balance(&ctx.inv1, &id, &alice),
+        500
+    );
     assert_eq!(ctx.snapshot.get_snapshot_balance(&ctx.inv1, &id, &bob), 300);
     assert_eq!(ctx.snapshot.get_snapshot_balance(&ctx.inv1, &id, &carol), 0);
     assert_eq!(
-        ctx.snapshot.try_get_snapshot_balance(&ctx.inv1, &99, &alice),
+        ctx.snapshot
+            .try_get_snapshot_balance(&ctx.inv1, &99, &alice),
         Err(Ok(Error::SnapshotNotFound))
     );
 }
@@ -412,7 +416,9 @@ fn distribute_from_snapshot_routes_pro_rata_amounts() {
     let carol = Address::generate(&env);
 
     let token_admin = Address::generate(&env);
-    let token = env.register_stellar_asset_contract_v2(token_admin).address();
+    let token = env
+        .register_stellar_asset_contract_v2(token_admin)
+        .address();
     StellarAssetClient::new(&env, &token).mint(&ctx.admin, &10_000);
 
     ctx.snapshot

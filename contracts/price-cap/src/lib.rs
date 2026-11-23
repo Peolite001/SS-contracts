@@ -3,7 +3,9 @@
 #[cfg(test)]
 mod test;
 
-use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, BytesN, Env, Symbol};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, contracttype, Address, BytesN, Env, Symbol,
+};
 
 const BPS_DENOMINATOR: i128 = 10_000;
 

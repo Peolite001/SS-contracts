@@ -9,7 +9,7 @@ output_dir="${1:-target/institutional}"
 for contract in invoice-escrow secondary-market; do
   stellar contract build --locked --package "$contract" --optimize --out-dir "$output_dir"
   artifact="$output_dir/${contract//-/_}.wasm"
-  size_bytes="$(wc -c < "$artifact")"
+  size_bytes="$(stat -c%s "$artifact" 2>/dev/null || stat -f%z "$artifact" 2>/dev/null)"
   # Leave room for the ledger-entry envelope under the 128 KiB code-entry limit.
   if (( size_bytes > 130000 )); then
     echo "Deployment artifact exceeds the 130000-byte budget: $artifact ($size_bytes bytes)" >&2

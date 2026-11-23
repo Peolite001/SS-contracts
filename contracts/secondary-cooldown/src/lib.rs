@@ -56,11 +56,7 @@ impl SecondaryCooldown {
 
     /// Record a successful secondary market buy. Returns CooldownActive if
     /// within the cooldown window.
-    pub fn record_buy(
-        env: Env,
-        buyer: Address,
-        invoice_id: BytesN<32>,
-    ) -> Result<(), Error> {
+    pub fn record_buy(env: Env, buyer: Address, invoice_id: BytesN<32>) -> Result<(), Error> {
         buyer.require_auth();
 
         let now = env.ledger().timestamp();
@@ -88,9 +84,10 @@ impl SecondaryCooldown {
         }
 
         // Record timestamp for this wallet/invoice pair.
-        env.storage()
-            .persistent()
-            .set(&StorageKey::LastBuy(buyer.clone(), invoice_id.clone()), &now);
+        env.storage().persistent().set(
+            &StorageKey::LastBuy(buyer.clone(), invoice_id.clone()),
+            &now,
+        );
 
         events::buy_recorded(&env, &buyer, &invoice_id, now);
         Ok(())

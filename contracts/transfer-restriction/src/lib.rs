@@ -1,8 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, Address, Env, Symbol,
-};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env, Symbol};
 
 #[derive(Clone)]
 #[contracttype]
@@ -86,11 +84,7 @@ impl TransferRestriction {
         }
     }
 
-    pub fn validate_transfer(
-        env: Env,
-        invoice_id: Symbol,
-        wallet: Address,
-    ) -> Result<(), Error> {
+    pub fn validate_transfer(env: Env, invoice_id: Symbol, wallet: Address) -> Result<(), Error> {
         let key = DataKey::Lock(invoice_id.clone(), wallet.clone());
         let Some(mut lock) = env.storage().persistent().get::<_, Lockup>(&key) else {
             return Ok(());

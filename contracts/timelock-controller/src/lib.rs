@@ -38,7 +38,13 @@ impl TimelockController {
         } else {
             min_delay
         };
-        storage::set_config(&env, &TimelockConfig { admin, min_delay: delay });
+        storage::set_config(
+            &env,
+            &TimelockConfig {
+                admin,
+                min_delay: delay,
+            },
+        );
         Ok(())
     }
 
@@ -124,7 +130,13 @@ impl TimelockController {
         if new_delay == 0 {
             return Err(Error::InvalidDelay);
         }
-        storage::set_config(&env, &TimelockConfig { admin: config.admin, min_delay: new_delay });
+        storage::set_config(
+            &env,
+            &TimelockConfig {
+                admin: config.admin,
+                min_delay: new_delay,
+            },
+        );
         Ok(())
     }
 

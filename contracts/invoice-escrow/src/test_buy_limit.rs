@@ -32,7 +32,13 @@ fn setup<'a>() -> Market<'a> {
         };
         storage::set_invoice(&env, invoice_id.clone(), &invoice);
     });
-    Market { env, client, contract_id, admin, invoice_id }
+    Market {
+        env,
+        client,
+        contract_id,
+        admin,
+        invoice_id,
+    }
 }
 
 impl Market<'_> {
@@ -48,7 +54,10 @@ impl Market<'_> {
     /// Buy a whole `amount` position at zero price (no token movement needed).
     fn buy(&self, buyer: &Address, amount: i128) -> Result<(), Error> {
         let seller = self.seller(amount);
-        match self.client.try_transfer_position(&seller, &self.invoice_id, buyer, &0) {
+        match self
+            .client
+            .try_transfer_position(&seller, &self.invoice_id, buyer, &0)
+        {
             Ok(_) => Ok(()),
             Err(Ok(err)) => Err(err),
             Err(Err(_)) => panic!("unexpected host error"),
@@ -61,7 +70,8 @@ fn buys_within_the_limit_succeed_and_excess_is_blocked() {
     let m = setup();
     let buyer = Address::generate(&m.env);
     assert_eq!(m.client.get_buy_remaining(&m.invoice_id, &buyer), i128::MAX);
-    m.client.set_buy_limit(&m.admin, &m.invoice_id, &500, &3_600);
+    m.client
+        .set_buy_limit(&m.admin, &m.invoice_id, &500, &3_600);
 
     assert_eq!(m.buy(&buyer, 150), Ok(()));
     assert_eq!(m.buy(&buyer, 250), Ok(()));
@@ -75,7 +85,8 @@ fn buys_within_the_limit_succeed_and_excess_is_blocked() {
 fn window_resets_after_expiry() {
     let m = setup();
     let buyer = Address::generate(&m.env);
-    m.client.set_buy_limit(&m.admin, &m.invoice_id, &500, &3_600);
+    m.client
+        .set_buy_limit(&m.admin, &m.invoice_id, &500, &3_600);
     m.buy(&buyer, 500).unwrap();
 
     m.env.ledger().with_mut(|l| l.timestamp += 3_599);
@@ -92,15 +103,18 @@ fn set_buy_limit_is_admin_only_and_validated() {
     let stranger = Address::generate(&m.env);
 
     assert_eq!(
-        m.client.try_set_buy_limit(&stranger, &m.invoice_id, &500, &3_600),
+        m.client
+            .try_set_buy_limit(&stranger, &m.invoice_id, &500, &3_600),
         Err(Ok(Error::Unauthorized))
     );
     assert_eq!(
-        m.client.try_set_buy_limit(&m.admin, &m.invoice_id, &0, &3_600),
+        m.client
+            .try_set_buy_limit(&m.admin, &m.invoice_id, &0, &3_600),
         Err(Ok(Error::InvalidAmount))
     );
     assert_eq!(
-        m.client.try_set_buy_limit(&m.admin, &m.invoice_id, &500, &0),
+        m.client
+            .try_set_buy_limit(&m.admin, &m.invoice_id, &500, &0),
         Err(Ok(Error::InvalidAmount))
     );
 }

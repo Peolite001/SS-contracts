@@ -1,9 +1,9 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, Address, Env, Vec, Symbol};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env, Symbol, Vec};
 
 /// Issue #579: Minimum funding threshold with refund on failure
-/// 
+///
 /// If an invoice does not reach its minimum funding amount before the window closes,
 /// all investments are automatically refunded.
 
@@ -142,7 +142,7 @@ impl FundingThresholdContract {
         if invoice.current_funding < invoice.min_funding_amount {
             // Funding failed - trigger refunds
             invoice.state = InvoiceState::FundingFailed;
-            
+
             // Get all investments
             let investments: Vec<Investment> = env
                 .storage()
@@ -186,7 +186,9 @@ impl FundingThresholdContract {
 
     /// Get invoice details
     pub fn get_invoice(env: Env, invoice_id: u64) -> Option<Invoice> {
-        env.storage().persistent().get(&DataKey::Invoice(invoice_id))
+        env.storage()
+            .persistent()
+            .get(&DataKey::Invoice(invoice_id))
     }
 
     /// Get all investments for an invoice

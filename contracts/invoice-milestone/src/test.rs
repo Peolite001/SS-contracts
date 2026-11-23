@@ -7,7 +7,13 @@ use soroban_sdk::{
     BytesN, Env, Vec,
 };
 
-fn setup() -> (Env, InvoiceMilestoneClient<'static>, Address, Address, Address) {
+fn setup() -> (
+    Env,
+    InvoiceMilestoneClient<'static>,
+    Address,
+    Address,
+    Address,
+) {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -23,9 +29,7 @@ fn setup() -> (Env, InvoiceMilestoneClient<'static>, Address, Address, Address) 
     let sac = StellarAssetClient::new(&env, &token_id.address());
     sac.mint(&contract_id, &10_000);
 
-    client
-        .initialize(&admin, &token_client.address)
-        .unwrap();
+    client.initialize(&admin, &token_client.address).unwrap();
 
     (env, client, admin, issuer, token_client.address)
 }
@@ -55,7 +59,9 @@ fn test_create_and_verify_milestone() {
     let inv = invoice_id(&env);
     let milestones = make_milestones(&env);
 
-    client.create_milestones(&inv, &issuer, &milestones).unwrap();
+    client
+        .create_milestones(&inv, &issuer, &milestones)
+        .unwrap();
 
     let statuses = client.get_milestone_status(&inv).unwrap();
     assert_eq!(statuses.len(), 2);
@@ -100,7 +106,9 @@ fn test_duplicate_milestones_rejected() {
     let (env, client, _admin, issuer, _token) = setup();
     let inv = invoice_id(&env);
     let milestones = make_milestones(&env);
-    client.create_milestones(&inv, &issuer, &milestones).unwrap();
+    client
+        .create_milestones(&inv, &issuer, &milestones)
+        .unwrap();
     assert_eq!(
         client.create_milestones(&inv, &issuer, &milestones),
         Err(Ok(Error::MilestonesAlreadySet))

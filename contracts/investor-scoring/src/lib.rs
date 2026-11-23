@@ -184,9 +184,7 @@ impl InvestorScoring {
         metrics.default_exposure = metrics
             .default_exposure
             .saturating_add(default_exposure_delta);
-        metrics.early_exit_count = metrics
-            .early_exit_count
-            .saturating_add(early_exit_delta);
+        metrics.early_exit_count = metrics.early_exit_count.saturating_add(early_exit_delta);
         metrics.total_volume = metrics.total_volume.saturating_add(volume_delta);
 
         env.storage()

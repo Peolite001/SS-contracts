@@ -1,9 +1,7 @@
 #![cfg(test)]
 
 use soroban_sdk::testutils::{Address as _, Events};
-use soroban_sdk::{
-    Address, BytesN, Env, Symbol, TryFromVal, TryIntoVal, Val, Vec,
-};
+use soroban_sdk::{Address, BytesN, Env, Symbol, TryFromVal, TryIntoVal, Val, Vec};
 
 use crate::types::{InvoiceCategory, RiskTier};
 use crate::{Error, InvoiceRegistry, InvoiceRegistryClient};
@@ -86,9 +84,24 @@ fn test_get_invoices_by_category_returns_exact_ids() {
     let real_estate = invoice_id(&env, 12);
     let sme = invoice_id(&env, 13);
 
-    client.set_category(&admin, &trade_a, &InvoiceCategory::TradeFinance, &RiskTier::Low);
-    client.set_category(&admin, &trade_b, &InvoiceCategory::TradeFinance, &RiskTier::High);
-    client.set_category(&admin, &real_estate, &InvoiceCategory::RealEstate, &RiskTier::Medium);
+    client.set_category(
+        &admin,
+        &trade_a,
+        &InvoiceCategory::TradeFinance,
+        &RiskTier::Low,
+    );
+    client.set_category(
+        &admin,
+        &trade_b,
+        &InvoiceCategory::TradeFinance,
+        &RiskTier::High,
+    );
+    client.set_category(
+        &admin,
+        &real_estate,
+        &InvoiceCategory::RealEstate,
+        &RiskTier::Medium,
+    );
     client.set_category(&admin, &sme, &InvoiceCategory::Sme, &RiskTier::Low);
 
     let trade = client.get_invoices_by_category(&InvoiceCategory::TradeFinance);
@@ -117,9 +130,7 @@ fn test_reclassification_moves_invoice_between_indexes() {
     let id = invoice_id(&env, 20);
     client.set_category(&admin, &id, &InvoiceCategory::Sme, &RiskTier::Medium);
     assert_eq!(
-        client
-            .get_invoices_by_category(&InvoiceCategory::Sme)
-            .len(),
+        client.get_invoices_by_category(&InvoiceCategory::Sme).len(),
         1
     );
 
@@ -127,9 +138,7 @@ fn test_reclassification_moves_invoice_between_indexes() {
     client.set_category(&admin, &id, &InvoiceCategory::TradeFinance, &RiskTier::Low);
 
     assert_eq!(
-        client
-            .get_invoices_by_category(&InvoiceCategory::Sme)
-            .len(),
+        client.get_invoices_by_category(&InvoiceCategory::Sme).len(),
         0
     );
     let trade = client.get_invoices_by_category(&InvoiceCategory::TradeFinance);
@@ -161,7 +170,12 @@ fn test_category_assigned_event_emitted_with_invoice_and_category() {
     let (admin, client) = setup(&env);
 
     let id = invoice_id(&env, 40);
-    client.set_category(&admin, &id, &InvoiceCategory::Infrastructure, &RiskTier::High);
+    client.set_category(
+        &admin,
+        &id,
+        &InvoiceCategory::Infrastructure,
+        &RiskTier::High,
+    );
 
     let events = env.events().all();
     let event = events.events().last().unwrap();
@@ -188,12 +202,7 @@ fn test_set_category_wrong_admin_rejected() {
     let impostor = Address::generate(&env);
     let id = invoice_id(&env, 50);
     assert_eq!(
-        client.try_set_category(
-            &impostor,
-            &id,
-            &InvoiceCategory::Sme,
-            &RiskTier::Low
-        ),
+        client.try_set_category(&impostor, &id, &InvoiceCategory::Sme, &RiskTier::Low),
         Err(Ok(Error::Unauthorized))
     );
 }
@@ -253,10 +262,7 @@ fn test_initialize_twice_rejected() {
 
     let admin = Address::generate(&env);
     client.initialize(&admin);
-    assert_eq!(
-        client.try_initialize(&admin),
-        Err(Ok(Error::AlreadyInit))
-    );
+    assert_eq!(client.try_initialize(&admin), Err(Ok(Error::AlreadyInit)));
 }
 
 #[test]

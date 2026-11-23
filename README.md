@@ -254,3 +254,6 @@ Updated length checks to use .events().len().
 Adjusted iterator usage for event verification, switching to .events().iter() and .events().rev() as needed.
 Modified event loop logic to work with the new slice‑based API (events_after.get(i)).
 These changes address the compilation errors caused by the breaking API change. Further refactoring may be needed for remaining events.last() and iterator patterns.
+#   C I   t r i g g e r  
+ #   C I   t r i g g e r   1 1 / 2 1 / 2 0 2 6   1 8 : 0 0 : 5 3  
+ 

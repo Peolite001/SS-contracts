@@ -4,8 +4,8 @@ mod errors;
 mod events;
 mod types;
 
-pub use types::{AmendmentField, AmendmentStatus, Error};
 use types::{Amendment, InvoiceMetadata, StorageKey};
+pub use types::{AmendmentField, AmendmentStatus, Error};
 
 use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Symbol};
 
@@ -160,7 +160,13 @@ impl InvoiceAmendment {
         save_amendment(&env, &data);
 
         let field_sym = data.field.as_symbol(&env);
-        events::amendment_executed(&env, amendment_id, &data.invoice_id, &field_sym, data.new_value);
+        events::amendment_executed(
+            &env,
+            amendment_id,
+            &data.invoice_id,
+            &field_sym,
+            data.new_value,
+        );
         Ok(meta)
     }
 
@@ -180,7 +186,10 @@ impl InvoiceAmendment {
         amendment(&env, amendment_id)
     }
 
-    pub fn get_invoice_metadata(env: Env, invoice_id: BytesN<32>) -> Result<InvoiceMetadata, Error> {
+    pub fn get_invoice_metadata(
+        env: Env,
+        invoice_id: BytesN<32>,
+    ) -> Result<InvoiceMetadata, Error> {
         metadata(&env, &invoice_id)
     }
 }

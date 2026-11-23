@@ -45,7 +45,9 @@ pub fn get_grace_period_days(env: &Env) -> u32 {
 
 /// Store the standard grace period in days.
 pub fn set_grace_period_days(env: &Env, days: u32) {
-    env.storage().instance().set(&StorageKey::GracePeriodDays, &days);
+    env.storage()
+        .instance()
+        .set(&StorageKey::GracePeriodDays, &days);
     env.storage()
         .instance()
         .extend_ttl(TTL_THRESHOLD, MIN_TTL_EXTEND);

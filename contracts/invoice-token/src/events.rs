@@ -116,6 +116,41 @@ pub fn fee_deducted_event(env: &Env, from: &Address, fee_amount: i128) {
         .publish((Symbol::new(env, "fee_deducted"),), (from, fee_amount));
 }
 
+pub fn transfer_requested_event(
+    env: &Env,
+    transfer_id: u64,
+    from: &Address,
+    to: &Address,
+    amount: i128,
+    nonce: u64,
+    expiry_ledger: u32,
+) {
+    env.events().publish(
+        (Symbol::new(env, "transfer_requested"), transfer_id),
+        (from.clone(), to.clone(), amount, nonce, expiry_ledger),
+    );
+}
+
+pub fn transfer_accepted_event(
+    env: &Env,
+    transfer_id: u64,
+    from: &Address,
+    to: &Address,
+    amount: i128,
+) {
+    env.events().publish(
+        (Symbol::new(env, "transfer_accepted"), transfer_id),
+        (from.clone(), to.clone(), amount),
+    );
+}
+
+pub fn transfer_cancelled_event(env: &Env, transfer_id: u64, from: &Address) {
+    env.events().publish(
+        (Symbol::new(env, "transfer_cancelled"), transfer_id),
+        from.clone(),
+    );
+}
+
 /// Emit history appended event.
 pub fn history_appended_event(
     env: &Env,

@@ -51,12 +51,7 @@ pub fn rate_committed(
     let topics = (Symbol::new(env, "rate_committed"), invoice_id.clone());
     env.events().publish(
         topics,
-        (
-            investor.clone(),
-            amount,
-            locked_rate_bps,
-            total_committed,
-        ),
+        (investor.clone(), amount, locked_rate_bps, total_committed),
     );
 }
 

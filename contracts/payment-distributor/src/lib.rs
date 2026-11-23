@@ -8,7 +8,8 @@ mod storage;
 mod types;
 
 pub use types::{
-    AssetRoute, DistributionPreview, DistributionSplit, DistributionState, MAX_FEE_BPS,
+    AssetRoute, DistributionPreview, DistributionSplit, DistributionState, PayoutReceipt,
+    PayoutStatus, MAX_FEE_BPS,
 };
 
 use soroban_sdk::{contract, contractimpl, token, Address, Env, Symbol, Vec};
@@ -81,10 +82,18 @@ fn parse_fee_bps(fee_bps: i128) -> Result<u32, Error> {
     Ok(fee_bps_u32)
 }
 
-/// Select the appropriate fee tier based on payment volume.
-/// Returns the fee_bps for the tier that matches the payment amount.
-/// If no tiers are configured or amount doesn't match any tier, returns the default fee.
+/// Select the platform fee for a payment.
+///
+/// Precedence: an active fee promotion (`start_ledger <= ledger < end_ledger`)
+/// wins; otherwise the first configured tier (in stored order) whose range
+/// contains `payment_amount`; otherwise `default_fee_bps`. Fees round down.
 fn select_fee_tier(env: &Env, payment_amount: i128, default_fee_bps: u32) -> u32 {
+    if let Some(promo) = storage::get_fee_promotion(env) {
+        let ledger = env.ledger().sequence();
+        if ledger >= promo.start_ledger && ledger < promo.end_ledger {
+            return promo.fee_bps;
+        }
+    }
     if let Some(tiers) = storage::get_fee_tiers(env) {
         for tier in tiers.iter() {
             if payment_amount >= tier.min_amount
@@ -488,6 +497,35 @@ impl PaymentDistributor {
         Ok(())
     }
 
+    /// Admin-only: set (`Some`) or clear (`None`) the promotional platform fee.
+    pub fn set_fee_promotion(
+        env: Env,
+        admin: Address,
+        promotion: Option<types::FeePromotion>,
+    ) -> Result<(), Error> {
+        let stored_admin = storage::get_admin(&env).ok_or(Error::NotInit)?;
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        admin.require_auth();
+        if let Some(p) = &promotion {
+            if p.fee_bps > MAX_FEE_BPS {
+                return Err(Error::InvalidBps);
+            }
+            if p.start_ledger >= p.end_ledger {
+                return Err(Error::InvalidAmount);
+            }
+        }
+        storage::set_fee_promotion(&env, &promotion);
+        Ok(())
+    }
+
+    /// View: the configured fee promotion, if any.
+    pub fn get_fee_promotion(env: Env) -> Result<Option<types::FeePromotion>, Error> {
+        storage::get_admin(&env).ok_or(Error::NotInit)?;
+        Ok(storage::get_fee_promotion(&env))
+    }
+
     /// View: return the configured fee tiers for volume-based platform fee schedule.
     pub fn get_fee_tiers(env: Env) -> Result<Option<Vec<types::FeeTier>>, Error> {
         storage::get_admin(&env).ok_or(Error::NotInit)?;
@@ -757,10 +795,14 @@ impl PaymentDistributor {
             return Err(Error::InvalidAmount);
         }
 
-        let fee_bps_u32 = parse_fee_bps(amounts.get(3).ok_or(Error::InvalidAmount)?)?;
+        let default_fee_bps = parse_fee_bps(amounts.get(3).ok_or(Error::InvalidAmount)?)?;
         let paid_amount = amounts.get(0).ok_or(Error::InvalidAmount)?;
         let investor_amount = amounts.get(2).ok_or(Error::InvalidAmount)?;
         let state = get_distribution_state(&env, &escrow_contract, &invoice_id);
+        let payment_volume = paid_amount
+            .checked_sub(state.paid_distributed)
+            .ok_or(Error::InvalidAmount)?;
+        let fee_bps_u32 = select_fee_tier(&env, payment_volume, default_fee_bps);
 
         compute_split(
             paid_amount,
@@ -899,9 +941,179 @@ impl PaymentDistributor {
 
         Ok(())
     }
+
+    // ---------- Issue #753: Partial-failure recovery ----------
+
+    pub fn distribute_with_recovery(
+        env: Env,
+        caller: Address,
+        payout_id: soroban_sdk::BytesN<32>,
+        token_addr: Address,
+        recipients: Vec<(Address, i128)>,
+    ) -> Result<PayoutReceipt, Error> {
+        caller.require_auth();
+        if recipients.is_empty() {
+            return Err(Error::EmptyBatch);
+        }
+        let key = types::StorageKey::PayoutRec(payout_id.clone());
+        if env.storage().persistent().has(&key) {
+            return Err(Error::AlreadyInit);
+        }
+
+        let token_client = token::Client::new(&env, &token_addr);
+        let contract_addr = env.current_contract_address();
+        let mut results = Vec::new(&env);
+        let mut total_paid: i128 = 0;
+        let mut all_succeeded = true;
+
+        for (recipient, amount) in recipients.iter() {
+            if amount <= 0 {
+                all_succeeded = false;
+                results.push_back(PayoutStatus {
+                    recipient,
+                    amount,
+                    paid: false,
+                    failure_reason: Some(Symbol::new(&env, "invalid_amount")),
+                });
+                continue;
+            }
+            let bal = token_client.balance(&contract_addr);
+            if bal < amount {
+                all_succeeded = false;
+                results.push_back(PayoutStatus {
+                    recipient,
+                    amount,
+                    paid: false,
+                    failure_reason: Some(Symbol::new(&env, "insufficient_balance")),
+                });
+                continue;
+            }
+            token_client.transfer(&contract_addr, &recipient, &amount);
+            total_paid = total_paid.checked_add(amount).ok_or(Error::Overflow)?;
+            results.push_back(PayoutStatus {
+                recipient,
+                amount,
+                paid: true,
+                failure_reason: None,
+            });
+        }
+
+        let receipt = PayoutReceipt {
+            payout_id,
+            results,
+            total_paid,
+            all_succeeded,
+        };
+        env.storage().persistent().set(&key, &receipt);
+        Ok(receipt)
+    }
+
+    pub fn retry_payout(
+        env: Env,
+        caller: Address,
+        payout_id: soroban_sdk::BytesN<32>,
+        token_addr: Address,
+        recipient_index: u32,
+    ) -> Result<PayoutStatus, Error> {
+        caller.require_auth();
+        let key = types::StorageKey::PayoutRec(payout_id);
+        let mut receipt: PayoutReceipt = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(Error::PayoutNotFound)?;
+        let mut entry = receipt
+            .results
+            .get(recipient_index)
+            .ok_or(Error::InvalidSplit)?;
+        if entry.paid {
+            return Err(Error::AlreadyDistributed);
+        }
+
+        let token_client = token::Client::new(&env, &token_addr);
+        let contract_addr = env.current_contract_address();
+        let bal = token_client.balance(&contract_addr);
+        if bal < entry.amount {
+            return Err(Error::InsufficientBalance);
+        }
+
+        token_client.transfer(&contract_addr, &entry.recipient, &entry.amount);
+        entry.paid = true;
+        entry.failure_reason = None;
+        receipt.results.set(recipient_index, entry.clone());
+        receipt.total_paid = receipt
+            .total_paid
+            .checked_add(entry.amount)
+            .ok_or(Error::Overflow)?;
+        receipt.all_succeeded = receipt.results.iter().all(|r| r.paid);
+        env.storage().persistent().set(&key, &receipt);
+        Ok(entry)
+    }
+
+    pub fn get_payout_status(
+        env: Env,
+        payout_id: soroban_sdk::BytesN<32>,
+    ) -> Option<PayoutReceipt> {
+        env.storage()
+            .persistent()
+            .get(&types::StorageKey::PayoutRec(payout_id))
+    }
 }
 
+#[cfg(test)]
+mod recovery_test {
+    use super::*;
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{BytesN, Env};
+
+    #[test]
+    fn test_partial_failure_and_independent_retry() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let cid = env.register(PaymentDistributor, ());
+        let client = PaymentDistributorClient::new(&env, &cid);
+
+        let admin = Address::generate(&env);
+        let r1 = Address::generate(&env);
+        let r2 = Address::generate(&env);
+        let token_addr = env
+            .register_stellar_asset_contract_v2(admin.clone())
+            .address();
+        let token_admin = token::StellarAssetClient::new(&env, &token_addr);
+        token_admin.mint(&cid, &600i128);
+
+        let payout_id = BytesN::from_array(&env, &[9u8; 32]);
+        let mut reqs = Vec::new(&env);
+        reqs.push_back((r1.clone(), 500i128));
+        reqs.push_back((r2.clone(), 400i128));
+
+        let receipt = client.distribute_with_recovery(&admin, &payout_id, &token_addr, &reqs);
+        assert!(!receipt.all_succeeded);
+        assert_eq!(receipt.total_paid, 500);
+        assert!(receipt.results.get(0).unwrap().paid);
+        assert!(!receipt.results.get(1).unwrap().paid);
+
+        // Retrying completed recipient 0 fails with AlreadyDistributed
+        assert_eq!(
+            client.try_retry_payout(&admin, &payout_id, &token_addr, &0u32),
+            Err(Ok(Error::AlreadyDistributed))
+        );
+
+        // Top up and retry recipient 1
+        token_admin.mint(&cid, &300i128);
+        let retried = client.retry_payout(&admin, &payout_id, &token_addr, &1u32);
+        assert!(retried.paid);
+        assert!(client.get_payout_status(&payout_id).unwrap().all_succeeded);
+    }
+}
+
+#[cfg(test)]
+mod auth_tests;
+#[cfg(test)]
+mod event_schema_tests;
 #[cfg(test)]
 mod integration_test;
 #[cfg(test)]
 mod test;
+#[cfg(test)]
+mod test_fee_promotion;

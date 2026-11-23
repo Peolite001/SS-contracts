@@ -73,11 +73,7 @@ impl OnboardingBonus {
             .checked_add(amount)
             .ok_or(Error::Overflow)?;
         let token = Self::address(&env, &StorageKey::Token)?;
-        token::Client::new(&env, &token).transfer(
-            &admin,
-            &env.current_contract_address(),
-            &amount,
-        );
+        token::Client::new(&env, &token).transfer(&admin, &env.current_contract_address(), &amount);
         env.storage().instance().set(&StorageKey::BonusPool, &pool);
         Ok(())
     }

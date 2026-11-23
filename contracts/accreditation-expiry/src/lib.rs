@@ -52,9 +52,10 @@ impl AccreditationExpiryContract {
         admin.require_auth();
 
         let current_time = env.ledger().timestamp();
-        
+
         // Emit expiring soon event if expiry is within 30 days
-        let days_until_expiry = (expiry_timestamp as i64 - current_time as i64) / SECONDS_PER_DAY as i64;
+        let days_until_expiry =
+            (expiry_timestamp as i64 - current_time as i64) / SECONDS_PER_DAY as i64;
         if days_until_expiry > 0 && days_until_expiry <= EXPIRY_WARNING_DAYS as i64 {
             env.events().publish(
                 (symbol_short!("expiring"), wallet.clone()),
@@ -72,16 +73,14 @@ impl AccreditationExpiryContract {
             .persistent()
             .set(&DataKey::Accreditation(wallet.clone()), &accreditation);
 
-        env.events().publish(
-            (symbol_short!("set_accr"), wallet),
-            expiry_timestamp,
-        );
+        env.events()
+            .publish((symbol_short!("set_accr"), wallet), expiry_timestamp);
     }
 
     /// Check accreditation status for a wallet
     pub fn check_accreditation(env: Env, wallet: Address) -> AccreditationStatus {
         let accreditation_key = DataKey::Accreditation(wallet);
-        
+
         if !env.storage().persistent().has(&accreditation_key) {
             return AccreditationStatus {
                 valid: false,
@@ -90,15 +89,12 @@ impl AccreditationExpiryContract {
             };
         }
 
-        let accreditation: Accreditation = env
-            .storage()
-            .persistent()
-            .get(&accreditation_key)
-            .unwrap();
+        let accreditation: Accreditation =
+            env.storage().persistent().get(&accreditation_key).unwrap();
 
         let current_time = env.ledger().timestamp();
         let is_valid = accreditation.valid && current_time < accreditation.expiry_timestamp;
-        
+
         let days_remaining = if accreditation.expiry_timestamp > current_time {
             ((accreditation.expiry_timestamp - current_time) / SECONDS_PER_DAY) as i64
         } else {
@@ -118,7 +114,7 @@ impl AccreditationExpiryContract {
         admin.require_auth();
 
         let accreditation_key = DataKey::Accreditation(wallet.clone());
-        
+
         if let Some(mut accreditation) = env
             .storage()
             .persistent()
@@ -129,10 +125,7 @@ impl AccreditationExpiryContract {
                 .persistent()
                 .set(&accreditation_key, &accreditation);
 
-            env.events().publish(
-                (symbol_short!("revoked"), wallet),
-                (),
-            );
+            env.events().publish((symbol_short!("revoked"), wallet), ());
         }
     }
 
@@ -140,17 +133,15 @@ impl AccreditationExpiryContract {
     /// Returns true if accreditation is valid, panics with AccreditationExpired if not
     pub fn validate_investment(env: Env, wallet: Address) -> bool {
         let status = Self::check_accreditation(env.clone(), wallet.clone());
-        
+
         if !status.valid {
             panic!("AccreditationExpired");
         }
 
         // Emit warning if expiring soon
         if status.days_remaining <= EXPIRY_WARNING_DAYS as i64 && status.days_remaining > 0 {
-            env.events().publish(
-                (symbol_short!("expiring"), wallet),
-                status.days_remaining,
-            );
+            env.events()
+                .publish((symbol_short!("expiring"), wallet), status.days_remaining);
         }
 
         true
@@ -176,7 +167,7 @@ mod test {
 
         let admin = Address::generate(&env);
         let wallet = Address::generate(&env);
-        
+
         client.initialize(&admin);
 
         // Set accreditation 60 days in future
@@ -197,7 +188,7 @@ mod test {
 
         let admin = Address::generate(&env);
         let wallet = Address::generate(&env);
-        
+
         client.initialize(&admin);
 
         let expiry = env.ledger().timestamp() + (60 * SECONDS_PER_DAY);
@@ -219,7 +210,7 @@ mod test {
 
         let admin = Address::generate(&env);
         let wallet = Address::generate(&env);
-        
+
         client.initialize(&admin);
 
         // Set expiry in the past
